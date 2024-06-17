@@ -56,7 +56,7 @@ func newConfig() *archiveConfig {
 
 	if *duration != "" {
 		if *before+*after == 0 {
-			panic("duration must be specify with before or after")
+			panic("Duration must be specified along with either 'before' or 'after' flags.")
 		}
 		if *since+*until != 0 {
 			panic("since or until can't specify with duration")
