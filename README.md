@@ -4,13 +4,25 @@ Slackのポストをファイルに書き出すだけ
 
 ## Config
 
+Duration config:
+- Since SA_SINCE: unixtimestamp
+- Until SA_UNTIL: unixtimestamp
+- Before SA_BEFORE: unixtimestamp
+- After SA_AFTER: unixtime
+- Duration SA_DURATION: seconds
+
+since < x < until
+x:duration < Before
+After < x:duration
+
 Slack Config:
-- 
+- Token SA_SLACK_TOKEN: string
+- ChannelID SA_SLACK_CHANNEL: string
 
 Output Config:
 - file
-- S3
-- mail?
+- S3 (TODO)
+- mail (TODO)
 
 ## CLI Mode
 
@@ -27,10 +39,10 @@ thread_ts string (ex. 1718183481.963719)
 or
 
 url string (ex. https://examplews.slack.com/archives/CXXXXXXXXXX/p1718243827457659?thread_ts=1718183481.963719&cid=CXXXXXXXXXX
-
 Automaticaly detect channel_id and thread_ts from given URL
+(TODO)
 
-## HTTP WebAPI Mode
+## HTTP WebAPI Mode(TODO)
 
 - GET: /
     - Dispatch form
@@ -61,40 +73,17 @@ Header Content-Type: application/json
 
 ### Flow and Components
 
-Collector -> Processor -> Exporter
+Collector -> Exporter
 
 - Collector
     - channel: slack.GetConversationHistory
     - thread: GetConversationReplies
-- Processor
-    - Plain text
-    - Json
 - Exporter
-    - Stdout
-    - File
-    - S3
-    - Mail
+    - destination
+        - File(io.Writer)
+        - S3(TODO)
+        - Mail(TODO)
+    - Format
+        - text
+        - json
 
-### Data type
-
-```yml
-Message:
-  - Text: ""
-    Timestamp: ""
-    ThreadTimestamp: ""
-    UserDisplayname: ""
-    Reaction:
-      - Emoji: ""
-        User: ""
-    Files:
-      - ID: ""
-
-Files:
-  - ID: ""
-    Title: ""
-    User: ""
-    Timestamp: ""
-    Filetype: ""
-    SlackDownloadLink: ""
-    StorePath: ""
-```
