@@ -41,11 +41,13 @@ var _ ArchiveExporterInterface = (*ArchiveExporterString)(nil)
 func (e *ArchiveExporterString) Write(ctx context.Context, outputs []*ArchiveOutput, w io.Writer) error {
 	sort.Slice(outputs, func(i, j int) bool { return outputs[i].Timestamp.Before(outputs[j].Timestamp) })
 	for _, output := range outputs {
-		fmt.Fprintf(w, "%s: %s\n%s\n---\n",
+		if _, err := fmt.Fprintf(w, "%s: %s\n%s\n---\n",
 			output.Timestamp.Format("2006/01/02 15:04:05"),
 			output.Username,
 			output.Text,
-		)
+		); err != nil {
+			return err
+		}
 	}
 	return nil
 }
