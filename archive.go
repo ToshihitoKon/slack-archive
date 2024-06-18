@@ -27,7 +27,12 @@ func run(ctx context.Context) error {
 	slackCollectorConfig := NewCollectorSlackConfig(config)
 	collector := NewCollectorSlack(slackCollectorConfig, config)
 	formatter := &FormatterText{}
-	exporter := NewExporterFile()
+
+	// exporter := NewExporterFile()
+	exporter, err := NewExporterS3(ctx)
+	if err != nil {
+		return err
+	}
 
 	outputs, err := collector.Execute(ctx)
 	if err != nil {

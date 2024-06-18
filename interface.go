@@ -27,7 +27,7 @@ type FormatterInterface interface {
 
 type ExporterInterface interface {
 	Write(context.Context, []byte) error
-	WriteFiles(context.Context, []*TempFile) error
+	WriteFiles(context.Context, []*TempFile, func(*TempFile) string) error
 }
 
 type TempFile struct {
