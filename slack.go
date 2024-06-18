@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -75,6 +76,10 @@ func (collector *CollectorSlack) Execute(ctx context.Context) (Outputs, error) {
 	}
 
 	if err := collector.getUserdata(ctx); err != nil {
+		return nil, err
+	}
+
+	if err := collector.getAllFiles(ctx); err != nil {
 		return nil, err
 	}
 
@@ -266,9 +271,15 @@ func (collector *CollectorSlack) outputs() (Outputs, error) {
 }
 
 func (collector *CollectorSlack) slackMessageToOutput(msg slack.Message) (*Output, error) {
-	displayName, ok := collector.userCache.cache[msg.User]
-	if !ok {
-		displayName = msg.User
+	var displayName string
+	if msg.Username != "" {
+		displayName = msg.Username
+	} else {
+		var ok bool
+		displayName, ok = collector.userCache.cache[msg.User]
+		if !ok {
+			displayName = msg.User
+		}
 	}
 
 	tsMicro, err := strconv.ParseInt(strings.ReplaceAll(msg.Timestamp, ".", ""), 10, 64)
@@ -278,11 +289,61 @@ func (collector *CollectorSlack) slackMessageToOutput(msg slack.Message) (*Outpu
 	timestamp := time.UnixMicro(tsMicro)
 	text := collector.userCache.replaceAll(msg.Text)
 
+	// Attachment Files
+	files := []*TempFile{}
+	for _, slackFile := range msg.Files {
+		f := &TempFile{
+			id:        slackFile.ID,
+			timestamp: slackFile.Timestamp.Time(),
+			name:      slackFile.Name,
+			path:      path.Join(collector.archiveConfig.TempFileDir, slackFile.ID),
+		}
+		files = append(files, f)
+	}
+
 	return &Output{
 		Timestamp: timestamp,
 		Username:  displayName,
 		Text:      text,
+		TempFiles: files,
 	}, nil
+}
+
+func (collector *CollectorSlack) getAllFiles(ctx context.Context) error {
+	for _, msg := range collector.messages {
+		for _, f := range msg.Files {
+			if f.Size == 0 {
+				continue
+			}
+			if _, err := collector.getFileAndPutTemporaryPath(ctx, f); err != nil {
+				return err
+			}
+		}
+	}
+	for _, msgs := range collector.replyMessages {
+		for _, msg := range msgs {
+			for _, f := range msg.Files {
+				if f.Size == 0 {
+					continue
+				}
+				if _, err := collector.getFileAndPutTemporaryPath(ctx, f); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+func (collector *CollectorSlack) getFileAndPutTemporaryPath(ctx context.Context, slackFile slack.File) (string, error) {
+	path := path.Join(collector.archiveConfig.TempFileDir, slackFile.ID)
+	logger.Printf("Save temporary file %s(%dbyte) -> %s (%s)", slackFile.Name, slackFile.Size, path, slackFile.Filetype)
+	f, err := os.Create(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	collector.slackClient.GetFileContext(ctx, slackFile.URLPrivate, f)
+	return path, nil
 }
 
 func newUserCacheClient() *userCacheClient {

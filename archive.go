@@ -2,6 +2,7 @@ package archive
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"time"
@@ -18,6 +19,11 @@ func Run() error {
 
 func run(ctx context.Context) error {
 	config := newConfig()
+	defer func() {
+		logger.Printf("Remove %s", config.TempFileDir)
+		os.RemoveAll(config.TempFileDir)
+	}()
+
 	slackCollectorConfig := NewCollectorSlackConfig(config)
 	collector := NewCollectorSlack(slackCollectorConfig, config)
 
@@ -40,10 +46,11 @@ func run(ctx context.Context) error {
 }
 
 type Config struct {
-	Since time.Time
-	Until time.Time
-
+	Since   time.Time
+	Until   time.Time
 	OutFile string
+
+	TempFileDir string
 }
 
 func newConfig() *Config {
@@ -53,10 +60,19 @@ func newConfig() *Config {
 	after := flag.Int64("after", 0, "Archive message after")
 	duration := flag.String("duration", "", "Archive message duration")
 	outfile := flag.StringP("outfile", "o", "", "Output file path")
+	tempFileDir := flag.String("temp-file-dir", "", "Temporary file save directory")
 	flag.Parse()
 
+	if *tempFileDir == "" {
+		d, err := os.MkdirTemp("", fmt.Sprintf("sa_%d", time.Now().Unix()))
+		if err != nil {
+			panic(err)
+		}
+		*tempFileDir = d
+	}
 	conf := &Config{
-		OutFile: *outfile,
+		OutFile:     *outfile,
+		TempFileDir: *tempFileDir,
 	}
 
 	if *duration != "" {
