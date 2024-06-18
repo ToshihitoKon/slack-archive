@@ -26,19 +26,20 @@ func run(ctx context.Context) error {
 
 	slackCollectorConfig := NewCollectorSlackConfig(config)
 	collector := NewCollectorSlack(slackCollectorConfig, config)
+	formatter := &FormatterText{}
+	exporter := NewExporterFile()
 
 	outputs, err := collector.Execute(ctx)
 	if err != nil {
 		return err
 	}
 
-	formatter := &FormatterText{}
 	bytes := formatter.Format(outputs)
 
-	exporter := &ExporterFile{
-		Writer: os.Stdout,
-	}
 	if err := exporter.Write(ctx, bytes); err != nil {
+		return err
+	}
+	if err := exporter.WriteFiles(ctx, outputs.TempFiles(), formatter.WriteFileName); err != nil {
 		return err
 	}
 
@@ -56,44 +57,36 @@ type Config struct {
 func newConfig() *Config {
 	since := flag.Int64("since", 0, "Archive message since")
 	until := flag.Int64("until", 0, "Archive message until")
-	before := flag.Int64("before", 0, "Archive message before")
-	after := flag.Int64("after", 0, "Archive message after")
 	duration := flag.String("duration", "", "Archive message duration")
-	outfile := flag.StringP("outfile", "o", "", "Output file path")
-	tempFileDir := flag.String("temp-file-dir", "", "Temporary file save directory")
 	flag.Parse()
 
-	if *tempFileDir == "" {
-		d, err := os.MkdirTemp("", fmt.Sprintf("sa_%d", time.Now().Unix()))
-		if err != nil {
-			panic(err)
-		}
-		*tempFileDir = d
+	conf := &Config{}
+
+	d, err := os.MkdirTemp("", fmt.Sprintf("sa_%d", time.Now().Unix()))
+	if err != nil {
+		panic(err)
 	}
-	conf := &Config{
-		OutFile:     *outfile,
-		TempFileDir: *tempFileDir,
-	}
+	conf.TempFileDir = d
 
 	if *duration != "" {
-		if *before+*after == 0 {
-			panic("Duration must be specified along with either 'before' or 'after' flags.")
+		if *since != 0 && *until != 0 {
+			panic("You can't specify both since and until when specify duration")
 		}
-		if *since+*until != 0 {
-			panic("since or until can't specify with duration")
-		}
-
 		dur, err := time.ParseDuration(*duration)
 		if err != nil {
 			panic(err)
 		}
+
 		switch {
-		case *before != 0:
-			conf.Until = time.Unix(*before, 0)
+		case *since != 0:
+			conf.Since = time.Unix(*since, 0)
+			conf.Until = conf.Since.Add(dur * 1)
+		case *until != 0:
+			conf.Until = time.Unix(*until, 0)
 			conf.Since = conf.Until.Add(dur * -1)
-		case *after != 0:
-			conf.Since = time.Unix(*after, 0)
-			conf.Until = conf.Since.Add(dur)
+		default:
+			conf.Until = time.Now()
+			conf.Since = conf.Until.Add(dur * -1)
 		}
 	} else {
 		if *since != 0 {
@@ -103,5 +96,6 @@ func newConfig() *Config {
 			conf.Until = time.Unix(*until, 0)
 		}
 	}
+
 	return conf
 }

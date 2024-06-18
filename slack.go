@@ -47,8 +47,13 @@ type CollectorSlack struct {
 	config        *CollectorSlackConfig
 	archiveConfig *Config
 
+	// NOTE: slack.MessageのFilesはなぜかSize=0のファイルが飛んでくる
+	// messages及びreplyMessagesに入れるタイミングで省くのは難しいので、func getAllFiles()で省き、
+	// 取ってきた一覧をtempFilePathsに入れて、func Outputs() のタイミングで存在するものだけOutputsに
+	// 入れて返す形になっている
 	messages      []slack.Message
 	replyMessages map[string][]slack.Message
+	tempFilePaths map[string]string
 	userCache     *userCacheClient
 }
 
@@ -62,6 +67,7 @@ func NewCollectorSlack(conf *CollectorSlackConfig, aConf *Config) *CollectorSlac
 		archiveConfig: aConf,
 		messages:      []slack.Message{},
 		replyMessages: map[string][]slack.Message{},
+		tempFilePaths: map[string]string{},
 		userCache:     newUserCacheClient(),
 	}
 }
@@ -292,11 +298,15 @@ func (collector *CollectorSlack) slackMessageToOutput(msg slack.Message) (*Outpu
 	// Attachment Files
 	files := []*TempFile{}
 	for _, slackFile := range msg.Files {
+		tempPath, ok := collector.tempFilePaths[slackFile.ID]
+		if !ok {
+			continue
+		}
 		f := &TempFile{
 			id:        slackFile.ID,
 			timestamp: slackFile.Timestamp.Time(),
 			name:      slackFile.Name,
-			path:      path.Join(collector.archiveConfig.TempFileDir, slackFile.ID),
+			path:      tempPath,
 		}
 		files = append(files, f)
 	}
@@ -310,14 +320,13 @@ func (collector *CollectorSlack) slackMessageToOutput(msg slack.Message) (*Outpu
 }
 
 func (collector *CollectorSlack) getAllFiles(ctx context.Context) error {
+	files := []slack.File{}
 	for _, msg := range collector.messages {
 		for _, f := range msg.Files {
 			if f.Size == 0 {
 				continue
 			}
-			if _, err := collector.getFileAndPutTemporaryPath(ctx, f); err != nil {
-				return err
-			}
+			files = append(files, f)
 		}
 	}
 	for _, msgs := range collector.replyMessages {
@@ -326,16 +335,28 @@ func (collector *CollectorSlack) getAllFiles(ctx context.Context) error {
 				if f.Size == 0 {
 					continue
 				}
-				if _, err := collector.getFileAndPutTemporaryPath(ctx, f); err != nil {
-					return err
-				}
+				files = append(files, f)
 			}
 		}
 	}
+
+	for _, f := range files {
+		p, err := collector.getFileAndPutTemporaryPath(ctx, f)
+		if err != nil {
+			return err
+		}
+		collector.tempFilePaths[f.ID] = p
+	}
 	return nil
 }
+
 func (collector *CollectorSlack) getFileAndPutTemporaryPath(ctx context.Context, slackFile slack.File) (string, error) {
 	path := path.Join(collector.archiveConfig.TempFileDir, slackFile.ID)
+	if _, ok := collector.tempFilePaths[slackFile.ID]; ok {
+		// Already downloaded
+		return path, nil
+	}
+
 	logger.Printf("Save temporary file %s(%dbyte) -> %s (%s)", slackFile.Name, slackFile.Size, path, slackFile.Filetype)
 	f, err := os.Create(path)
 	if err != nil {
