@@ -363,7 +363,9 @@ func (collector *CollectorSlack) getFileAndPutTemporaryPath(ctx context.Context,
 		return "", err
 	}
 	defer f.Close()
-	collector.slackClient.GetFileContext(ctx, slackFile.URLPrivate, f)
+	if err := collector.slackClient.GetFileContext(ctx, slackFile.URLPrivate, f); err != nil {
+		return "", err
+	}
 	return path, nil
 }
 
