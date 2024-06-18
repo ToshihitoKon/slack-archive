@@ -26,12 +26,27 @@ func run(ctx context.Context) error {
 
 	slackCollectorConfig := NewCollectorSlackConfig(config)
 	collector := NewCollectorSlack(slackCollectorConfig, config)
-	formatter := &FormatterText{}
 
-	// exporter := NewExporterFile()
-	exporter, err := NewExporterS3(ctx)
-	if err != nil {
-		return err
+	var formatter FormatterInterface
+	switch config.Format {
+	case "text":
+		formatter = &FormatterText{}
+	default:
+		return fmt.Errorf("Format %s is not available", config.Exporter)
+	}
+
+	var exporter ExporterInterface
+	switch config.Exporter {
+	case "file":
+		exporter = NewExporterFile()
+	case "s3":
+		ex, err := NewExporterS3(ctx)
+		if err != nil {
+			return err
+		}
+		exporter = ex
+	default:
+		return fmt.Errorf("Exporter %s is not available", config.Exporter)
 	}
 
 	outputs, err := collector.Execute(ctx)
@@ -52,9 +67,10 @@ func run(ctx context.Context) error {
 }
 
 type Config struct {
-	Since   time.Time
-	Until   time.Time
-	OutFile string
+	Since    time.Time
+	Until    time.Time
+	Exporter string
+	Format   string
 
 	TempFileDir string
 }
@@ -63,9 +79,14 @@ func newConfig() *Config {
 	since := flag.Int64("since", 0, "Archive message since")
 	until := flag.Int64("until", 0, "Archive message until")
 	duration := flag.String("duration", "", "Archive message duration")
+	format := flag.String("format", "text", "Log format default: text")
+	exporter := flag.String("exporter", "file", "Exporter default: file")
 	flag.Parse()
 
-	conf := &Config{}
+	conf := &Config{
+		Format:   *format,
+		Exporter: *exporter,
+	}
 
 	d, err := os.MkdirTemp("", fmt.Sprintf("sa_%d", time.Now().Unix()))
 	if err != nil {
