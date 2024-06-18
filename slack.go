@@ -11,61 +11,66 @@ import (
 	"github.com/slack-go/slack"
 )
 
-type slackConfig struct {
-	slackToken        string
-	slackHistoryLimit int
-	slackChannel      string
+type CollectorSlackConfig struct {
+	Token   string
+	Channel string
 
-	slackHistryLatest string // archiveConfig.Until
-	slackHistryOldest string // archiveConfig.since
+	HistoryLimit int
+	HistryLatest string // archive.Config.Until
+	HistryOldest string // archive.Config.since
 
-	retrivalLimit int
+	RetrivalLimit int
 }
 
-func (conf *slackConfig) init(aConf *archiveConfig) {
-	conf.slackHistoryLimit = 200
-	conf.retrivalLimit = 10
+func NewCollectorSlackConfig(archiveConf *Config) *CollectorSlackConfig {
+	conf := &CollectorSlackConfig{}
+	conf.HistoryLimit = 200
+	conf.RetrivalLimit = 10
 
 	// Get Environment
-	conf.slackToken = os.Getenv("SA_SLACK_TOKEN")
-	conf.slackChannel = os.Getenv("SA_SLACK_CHANNEL")
+	conf.Token = os.Getenv("SA_SLACK_TOKEN")
+	conf.Channel = os.Getenv("SA_SLACK_CHANNEL")
 
-	if !aConf.Since.IsZero() {
-		conf.slackHistryOldest = strconv.FormatInt(aConf.Since.Unix(), 10)
+	if !archiveConf.Since.IsZero() {
+		conf.HistryOldest = strconv.FormatInt(archiveConf.Since.Unix(), 10)
 	}
-	if !aConf.Until.IsZero() {
-		conf.slackHistryLatest = strconv.FormatInt(aConf.Until.Unix(), 10)
+	if !archiveConf.Until.IsZero() {
+		conf.HistryLatest = strconv.FormatInt(archiveConf.Until.Unix(), 10)
 	}
+	return conf
 }
 
 // Collector
-type ArchiveCollectorSlack struct {
+type CollectorSlack struct {
 	slackClient   *slack.Client
-	config        *slackConfig
-	archiveConfig *archiveConfig
+	config        *CollectorSlackConfig
+	archiveConfig *Config
 
-	messages  []slack.Message
-	userCache *userCacheClient
+	messages      []slack.Message
+	replyMessages map[string][]slack.Message
+	userCache     *userCacheClient
 }
 
 // Interface implementation check
-var _ ArchiveCollectorInterface = (*ArchiveCollectorSlack)(nil)
+var _ CollectorInterface = (*CollectorSlack)(nil)
 
-func NewArchiveCollectorSlack(aConf *archiveConfig) *ArchiveCollectorSlack {
-	conf := &slackConfig{}
-	conf.init(aConf)
-
-	return &ArchiveCollectorSlack{
-		slackClient:   slack.New(conf.slackToken),
+func NewCollectorSlack(conf *CollectorSlackConfig, aConf *Config) *CollectorSlack {
+	return &CollectorSlack{
+		slackClient:   slack.New(conf.Token),
 		config:        conf,
 		archiveConfig: aConf,
 		messages:      []slack.Message{},
-		userCache:     NewUserCacheClient(),
+		replyMessages: map[string][]slack.Message{},
+		userCache:     newUserCacheClient(),
 	}
 }
 
-func (collector *ArchiveCollectorSlack) Execute(ctx context.Context) ([]*ArchiveOutput, error) {
-	if err := collector.getMessages(ctx); err != nil {
+func (collector *CollectorSlack) Execute(ctx context.Context) (Outputs, error) {
+	if err := collector.getHistoryMessages(ctx); err != nil {
+		return nil, err
+	}
+
+	if err := collector.getHistoryMessagesInThread(ctx); err != nil {
 		return nil, err
 	}
 
@@ -73,7 +78,7 @@ func (collector *ArchiveCollectorSlack) Execute(ctx context.Context) ([]*Archive
 		return nil, err
 	}
 
-	outputs, err := collector.archiveOutputs()
+	outputs, err := collector.outputs()
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +86,7 @@ func (collector *ArchiveCollectorSlack) Execute(ctx context.Context) ([]*Archive
 	return outputs, nil
 }
 
-func (collector *ArchiveCollectorSlack) getMessages(ctx context.Context) error {
+func (collector *CollectorSlack) getHistoryMessages(ctx context.Context) error {
 	client := collector.slackClient
 	config := collector.config
 
@@ -90,21 +95,21 @@ func (collector *ArchiveCollectorSlack) getMessages(ctx context.Context) error {
 	// conversations.history
 	var cur string = ""
 	var count = 0
-	for count < config.retrivalLimit {
+	for count < config.RetrivalLimit {
 		count++
 		logger.Printf("GetConversationHistoryContext count:%d\n", count)
 
 		params := &slack.GetConversationHistoryParameters{
-			ChannelID:          config.slackChannel,
+			ChannelID:          config.Channel,
 			Cursor:             cur,
-			Limit:              config.slackHistoryLimit,
+			Limit:              config.HistoryLimit,
 			IncludeAllMetadata: false,
 		}
-		if config.slackHistryLatest != "" {
-			params.Latest = config.slackHistryLatest
+		if config.HistryLatest != "" {
+			params.Latest = config.HistryLatest
 		}
-		if config.slackHistryOldest != "" {
-			params.Oldest = config.slackHistryOldest
+		if config.HistryOldest != "" {
+			params.Oldest = config.HistryOldest
 		}
 
 		historyRes, err := client.GetConversationHistoryContext(ctx, params)
@@ -126,22 +131,76 @@ func (collector *ArchiveCollectorSlack) getMessages(ctx context.Context) error {
 	return nil
 }
 
-func (collector *ArchiveCollectorSlack) getUserdata(ctx context.Context) error {
-	// Users map
-	uids := []string{}
+func (collector *CollectorSlack) getHistoryMessagesInThread(ctx context.Context) error {
+	client := collector.slackClient
+	config := collector.config
+
+	var threadBaseMessages = []slack.Message{}
 	for _, msg := range collector.messages {
-		uids = append(uids, msg.User)
-		uids = append(uids, msg.ReplyUsers...)
-		// NOTE: リアクションのアーカイブ非対応なのでユーザーID検索もスキップ
-		// for _, r := range msg.Reactions {
-		// 	uids = append(uids, r.Users...)
-		// }
+		logger.Printf("collector.messages ts:%s subtype:%s replyCount:%d", msg.Timestamp, msg.SubType, msg.ReplyCount)
+		if msg.ReplyCount != 0 {
+			threadBaseMessages = append(threadBaseMessages, msg)
+		}
 	}
 
-	for _, uid := range uids {
-		// NOTE: PutIfNotExistにfunc(string)stringを渡せば中でslackAPIを叩かせられるけど面倒になって一旦保留
-		// userdataFetchAllで一気に叩く
-		collector.userCache.PutIfNotExist(uid, "")
+	// conversations.replies
+	for _, baseMsg := range threadBaseMessages {
+		if _, ok := collector.replyMessages[baseMsg.Timestamp]; !ok {
+			collector.replyMessages[baseMsg.Timestamp] = []slack.Message{}
+		}
+		logger.Printf("ReplyMessages %s", baseMsg.Timestamp)
+
+		var cur string = ""
+		var count = 0
+		for count < config.RetrivalLimit {
+			count++
+			logger.Printf("GetConversationHistoryContext base: %s, count:%d\n", baseMsg.Timestamp, count)
+
+			params := &slack.GetConversationRepliesParameters{
+				ChannelID:          config.Channel,
+				Timestamp:          baseMsg.Timestamp,
+				Cursor:             cur,
+				Limit:              config.HistoryLimit,
+				IncludeAllMetadata: false,
+			}
+			if config.HistryLatest != "" {
+				params.Latest = config.HistryLatest
+			}
+			if config.HistryOldest != "" {
+				params.Oldest = config.HistryOldest
+			}
+
+			msgs, hasMore, nextCursor, err := client.GetConversationRepliesContext(ctx, params)
+			if err != nil {
+				return err
+			}
+
+			collector.replyMessages[baseMsg.Timestamp] = append(collector.replyMessages[baseMsg.Timestamp], msgs...)
+
+			if !hasMore {
+				break
+			}
+			cur = nextCursor
+		}
+	}
+
+	return nil
+}
+
+func (collector *CollectorSlack) getUserdata(ctx context.Context) error {
+	for _, msg := range collector.messages {
+		collector.userCache.putIfNotExist(msg.User, "")
+		// NOTE: リアクションのアーカイブ非対応なのでユーザーID検索もスキップ
+		// for _, r := range msg.Reactions {
+		// }
+	}
+	for _, msgs := range collector.replyMessages {
+		for _, msg := range msgs {
+			collector.userCache.putIfNotExist(msg.User, "")
+			// NOTE: リアクションのアーカイブ非対応なのでユーザーID検索もスキップ
+			// for _, r := range msg.Reactions {
+			// }
+		}
 	}
 
 	if err := collector.userdataFetchAll(ctx); err != nil {
@@ -151,7 +210,7 @@ func (collector *ArchiveCollectorSlack) getUserdata(ctx context.Context) error {
 	return nil
 }
 
-func (collector *ArchiveCollectorSlack) getUsername(ctx context.Context, uid string) (string, error) {
+func (collector *CollectorSlack) getUsername(ctx context.Context, uid string) (string, error) {
 	logger.Printf("GetUserProfileContext UserID:%s\n", uid)
 	uprof, err := collector.slackClient.GetUserProfileContext(ctx, &slack.GetUserProfileParameters{
 		UserID:        uid,
@@ -167,48 +226,78 @@ type userCacheClient struct {
 	cache map[string]string
 }
 
-func (collector *ArchiveCollectorSlack) archiveOutputs() ([]*ArchiveOutput, error) {
-	var outputs []*ArchiveOutput
+func (collector *CollectorSlack) outputs() (Outputs, error) {
+	var outputs Outputs
 
 	for _, msg := range collector.messages {
 		if msg.SubType == "thread_broadcast" {
 			continue
 		}
-		displayName, ok := collector.userCache.cache[msg.User]
-		if !ok {
-			displayName = msg.User
-		}
 
-		tsMicro, err := strconv.ParseInt(strings.ReplaceAll(msg.Timestamp, ".", ""), 10, 64)
+		output, err := collector.slackMessageToOutput(msg)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "failed to parseint: %s", msg.Timestamp)
+			logger.Printf("failed to convert slackMessage to archive.Output: %s", err)
 			continue
 		}
-		timestamp := time.UnixMicro(tsMicro)
-		text := collector.userCache.ReplaceAll(msg.Text)
 
-		outputs = append(outputs, &ArchiveOutput{
-			Timestamp: timestamp,
-			Username:  displayName,
-			Text:      text,
-		})
+		// リプライがある場合は後ろにくっつける
+		if replies, ok := collector.replyMessages[msg.Timestamp]; ok {
+			outputReplies := Outputs{}
+			for _, reply := range replies {
+				outputReply, err := collector.slackMessageToOutput(reply)
+				if err != nil {
+					logger.Printf("failed to convert slackMessage to archive.Output: %s", err)
+					continue
+				}
+				// NOTE: Repliesにはスレッドの元になるポストが含まれるのでスキップする
+				if msg.Timestamp == reply.Timestamp {
+					continue
+				}
+				outputReplies = append(outputReplies, outputReply)
+			}
+			logger.Printf("Replies %d\n", len(outputReplies))
+			output.Replies = outputReplies
+		}
+
+		outputs = append(outputs, output)
 	}
+
 	return outputs, nil
 }
 
-func NewUserCacheClient() *userCacheClient {
+func (collector *CollectorSlack) slackMessageToOutput(msg slack.Message) (*Output, error) {
+	displayName, ok := collector.userCache.cache[msg.User]
+	if !ok {
+		displayName = msg.User
+	}
+
+	tsMicro, err := strconv.ParseInt(strings.ReplaceAll(msg.Timestamp, ".", ""), 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("failed to ParseInt: %s", msg.Timestamp)
+	}
+	timestamp := time.UnixMicro(tsMicro)
+	text := collector.userCache.replaceAll(msg.Text)
+
+	return &Output{
+		Timestamp: timestamp,
+		Username:  displayName,
+		Text:      text,
+	}, nil
+}
+
+func newUserCacheClient() *userCacheClient {
 	return &userCacheClient{
 		cache: map[string]string{},
 	}
 }
 
-func (ucc *userCacheClient) PutIfNotExist(key, value string) {
+func (ucc *userCacheClient) putIfNotExist(key, value string) {
 	if _, ok := ucc.cache[key]; !ok {
 		ucc.cache[key] = value
 	}
 }
 
-func (ucc *userCacheClient) ReplaceAll(str string) string {
+func (ucc *userCacheClient) replaceAll(str string) string {
 	result := str
 	for uid, name := range ucc.cache {
 		result = strings.ReplaceAll(result, uid, name)
@@ -216,7 +305,7 @@ func (ucc *userCacheClient) ReplaceAll(str string) string {
 	return result
 }
 
-func (collector *ArchiveCollectorSlack) userdataFetchAll(ctx context.Context) error {
+func (collector *CollectorSlack) userdataFetchAll(ctx context.Context) error {
 	for uid, name := range collector.userCache.cache {
 		if name == "" {
 			displayName, err := collector.getUsername(ctx, uid)
@@ -228,6 +317,5 @@ func (collector *ArchiveCollectorSlack) userdataFetchAll(ctx context.Context) er
 			collector.userCache.cache[uid] = displayName
 		}
 	}
-
 	return nil
 }

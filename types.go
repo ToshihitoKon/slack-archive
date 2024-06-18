@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -13,52 +15,73 @@ ctx := context.Background()
 var outputs []*ArchiveOutput
 
 collector := &ArchiveCollectorImplement{}
-exporter := &ArchiveExporterText{}
-
 outputs, _ := collector.Execute(ctx)
+
+exporter := &ArchiveExporterFileString{ Writer: os.Stdout }
 _ = exporter.Write(ctx, output, os.Stdout)
 */
 
-type ArchiveOutput struct {
+type Output struct {
+	ID        string    `json:"id,omitempty"`
 	Timestamp time.Time `json:"timestamp,omitempty"`
 	Username  string    `json:"username,omitempty"`
 	Text      string    `json:"text,omitempty"`
+
+	Replies Outputs `json:"replies,omitempty"`
 }
 
-type ArchiveCollectorInterface interface {
-	Execute(context.Context) ([]*ArchiveOutput, error)
+type Outputs []*Output
+
+type CollectorInterface interface {
+	Execute(context.Context) (Outputs, error)
 }
 
-type ArchiveExporterInterface interface {
-	Write(context.Context, []*ArchiveOutput, io.Writer) error
+type FormatterInterface interface {
+	Format(Outputs) []byte
 }
 
-// Text Exporter
-type ArchiveExporterString struct{}
+type ExporterInterface interface {
+	Write(context.Context, []byte) error
+}
 
-var _ ArchiveExporterInterface = (*ArchiveExporterString)(nil)
+// Implementations
+type FormatterText struct{}
 
-func (e *ArchiveExporterString) Write(ctx context.Context, outputs []*ArchiveOutput, w io.Writer) error {
+var _ FormatterInterface = (*FormatterText)(nil)
+
+func (f *FormatterText) Format(outputs Outputs) []byte {
 	sort.Slice(outputs, func(i, j int) bool { return outputs[i].Timestamp.Before(outputs[j].Timestamp) })
+
+	texts := []string{}
 	for _, output := range outputs {
-		if _, err := fmt.Fprintf(w, "%s: %s\n%s\n---\n",
+		texts = append(texts, fmt.Sprintf(
+			"%s %s> %s",
 			output.Timestamp.Format("2006/01/02 15:04:05"),
 			output.Username,
 			output.Text,
-		); err != nil {
-			return err
+		))
+		sort.Slice(output.Replies, func(i, j int) bool { return output.Replies[i].Timestamp.Before(output.Replies[j].Timestamp) })
+		for _, reply := range output.Replies {
+			texts = append(texts, fmt.Sprintf(
+				" | %s %s> %s",
+				reply.Timestamp.Format("2006/01/02 15:04:05"),
+				reply.Username,
+				strings.ReplaceAll(reply.Text, "\n", "\n | "),
+			))
 		}
 	}
-	return nil
+	return []byte(strings.Join(texts, "\n"))
 }
 
-// Json Exporter
-type ArchiveExporterJson struct{}
+type ExporterFile struct {
+	Writer io.Writer
+}
 
-var _ ArchiveExporterInterface = (*ArchiveExporterJson)(nil)
+var _ ExporterInterface = (*ExporterFile)(nil)
 
-func (e *ArchiveExporterJson) Write(ctx context.Context, outputs []*ArchiveOutput, w io.Writer) error {
-	// TODO: impl
-	fmt.Println("Json.Write not impremented")
+func (e *ExporterFile) Write(ctx context.Context, bytes []byte) error {
+	if _, err := e.Writer.Write(bytes); err != nil {
+		return err
+	}
 	return nil
 }

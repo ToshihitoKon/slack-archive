@@ -18,30 +18,35 @@ func Run() error {
 
 func run(ctx context.Context) error {
 	config := newConfig()
-	// logger.Printf("%+v", config)
-	collector := NewArchiveCollectorSlack(config)
+	slackCollectorConfig := NewCollectorSlackConfig(config)
+	collector := NewCollectorSlack(slackCollectorConfig, config)
 
 	outputs, err := collector.Execute(ctx)
 	if err != nil {
 		return err
 	}
 
-	exporter := &ArchiveExporterString{}
-	if err := exporter.Write(ctx, outputs, os.Stdout); err != nil {
+	formatter := &FormatterText{}
+	bytes := formatter.Format(outputs)
+
+	exporter := &ExporterFile{
+		Writer: os.Stdout,
+	}
+	if err := exporter.Write(ctx, bytes); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-type archiveConfig struct {
+type Config struct {
 	Since time.Time
 	Until time.Time
 
 	OutFile string
 }
 
-func newConfig() *archiveConfig {
+func newConfig() *Config {
 	since := flag.Int64("since", 0, "Archive message since")
 	until := flag.Int64("until", 0, "Archive message until")
 	before := flag.Int64("before", 0, "Archive message before")
@@ -50,7 +55,7 @@ func newConfig() *archiveConfig {
 	outfile := flag.StringP("outfile", "o", "", "Output file path")
 	flag.Parse()
 
-	conf := &archiveConfig{
+	conf := &Config{
 		OutFile: *outfile,
 	}
 
