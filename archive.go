@@ -20,8 +20,8 @@ func Run() error {
 func run(ctx context.Context) error {
 	config := newConfig()
 	defer func() {
-		logger.Printf("Remove %s", config.TempFileDir)
-		os.RemoveAll(config.TempFileDir)
+		logger.Printf("Remove %s", config.LocalFileDir)
+		os.RemoveAll(config.LocalFileDir)
 	}()
 
 	slackCollectorConfig := NewCollectorSlackConfig(config)
@@ -35,16 +35,20 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("Format %s is not available", config.Exporter)
 	}
 
-	var exporter ExporterInterface
+	var textExporter TextExporterInterface
+	var fileExporter FileExporterInterface
 	switch config.Exporter {
 	case "file":
-		exporter = NewExporterFile()
+		exp := NewExporterLocal()
+		textExporter = exp
+		fileExporter = exp
 	case "s3":
-		ex, err := NewExporterS3(ctx)
+		exp, err := NewExporterS3(ctx)
 		if err != nil {
 			return err
 		}
-		exporter = ex
+		textExporter = exp
+		fileExporter = exp
 	default:
 		return fmt.Errorf("Exporter %s is not available", config.Exporter)
 	}
@@ -56,10 +60,10 @@ func run(ctx context.Context) error {
 
 	bytes := formatter.Format(outputs)
 
-	if err := exporter.Write(ctx, bytes); err != nil {
+	if err := textExporter.Write(ctx, bytes); err != nil {
 		return err
 	}
-	if err := exporter.WriteFiles(ctx, outputs.TempFiles(), formatter.WriteFileName); err != nil {
+	if err := fileExporter.WriteFiles(ctx, outputs.LocalFiles(), formatter.WriteFileName); err != nil {
 		return err
 	}
 
@@ -72,7 +76,7 @@ type Config struct {
 	Exporter string
 	Format   string
 
-	TempFileDir string
+	LocalFileDir string
 }
 
 func newConfig() *Config {
@@ -92,7 +96,7 @@ func newConfig() *Config {
 	if err != nil {
 		panic(err)
 	}
-	conf.TempFileDir = d
+	conf.LocalFileDir = d
 
 	if *duration != "" {
 		if *since != 0 && *until != 0 {
