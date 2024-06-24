@@ -7,6 +7,16 @@ import (
 	"path"
 )
 
+type ExporterNone struct{}
+
+var _ TextExporterInterface = (*ExporterNone)(nil)
+var _ FileExporterInterface = (*ExporterNone)(nil)
+
+func (_ *ExporterNone) Write(_ context.Context, _ []byte) error { return nil }
+func (_ *ExporterNone) WriteFiles(_ context.Context, _ []*LocalFile, _ func(*LocalFile) string) error {
+	return nil
+}
+
 type ExporterLocal struct {
 	writer      io.Writer
 	fileSaveDir string
