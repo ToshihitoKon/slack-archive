@@ -86,3 +86,16 @@ func (e *ExporterS3) putFileToS3(ctx context.Context, srcPath, dstKey string) er
 
 	return nil
 }
+
+type TextExporterSES struct{}
+
+var _ TextExporterInterface = (*TextExporterSES)(nil)
+
+func NewTextExporterSES() *TextExporterSES {
+	return &TextExporterSES{}
+}
+
+func (e *TextExporterSES) Write(ctx context.Context, data []byte) error {
+	var _, _ = ctx, data
+	return nil
+}
