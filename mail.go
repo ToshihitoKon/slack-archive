@@ -21,7 +21,7 @@ func (m *Mail) headerString() string {
 	s := fmt.Sprintf(`From: %s
 To: %s
 Subject: %s
-MIME-Versoin: 1.0
+MIME-Version: 1.0
 Content-Type: multipart/mixed; boundary=%s
 
 `,
