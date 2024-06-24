@@ -1,11 +1,10 @@
 package main
 
 import (
-	"context"
+	// "context"
 	"log"
 	"net/http"
-
-	archive "github.com/ToshihitoKon/slack-archive"
+	// archive "github.com/ToshihitoKon/slack-archive"
 )
 
 func main() {
@@ -17,25 +16,25 @@ func main() {
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
+	// ctx := context.Background()
 
-	archiveConf := &archive.Config{}
-	slackConf := archive.NewCollectorSlackConfig(archiveConf)
-	collector := archive.NewCollectorSlack(slackConf, archiveConf)
+	// archiveConf := &archive.Config{}
+	// slackConf := archive.NewCollectorSlackConfig(archiveConf)
+	// collector := archive.NewCollectorSlack(slackConf, archiveConf)
 
-	outputs, err := collector.Execute(ctx)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-	}
-
-	formatter := &archive.FormatterText{}
-	byte := formatter.Format(outputs)
-
-	exporter := &archive.ExporterFile{
-		Writer: w,
-	}
-	if err := exporter.Write(ctx, byte); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-	}
+	// outputs, err := collector.Execute(ctx)
+	// if err != nil {
+	// 	w.WriteHeader(http.StatusInternalServerError)
+	// }
+	//
+	// formatter := &archive.FormatterText{}
+	// byte := formatter.Format(outputs)
+	//
+	// exporter := &archive.ExporterFile{
+	// 	Writer: w,
+	// }
+	// if err := exporter.Write(ctx, byte); err != nil {
+	// 	w.WriteHeader(http.StatusInternalServerError)
+	// }
 	w.WriteHeader(http.StatusOK)
 }

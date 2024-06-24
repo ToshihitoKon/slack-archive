@@ -22,15 +22,17 @@ type CollectorInterface interface {
 
 type FormatterInterface interface {
 	Format(Outputs) []byte
-	WriteFileName(*TempFile) string
+	WriteFileName(*LocalFile) string
 }
 
-type ExporterInterface interface {
+type TextExporterInterface interface {
 	Write(context.Context, []byte) error
-	WriteFiles(context.Context, []*TempFile, func(*TempFile) string) error
+}
+type FileExporterInterface interface {
+	WriteFiles(context.Context, []*LocalFile, func(*LocalFile) string) error
 }
 
-type TempFile struct {
+type LocalFile struct {
 	id        string
 	path      string
 	name      string
@@ -43,18 +45,18 @@ type Output struct {
 	Username  string    `json:"username,omitempty"`
 	Text      string    `json:"text,omitempty"`
 
-	Replies   Outputs `json:"replies,omitempty"`
-	TempFiles []*TempFile
+	Replies    Outputs `json:"replies,omitempty"`
+	LocalFiles []*LocalFile
 }
 
 type Outputs []*Output
 
-func (outputs Outputs) TempFiles() []*TempFile {
-	res := []*TempFile{}
+func (outputs Outputs) LocalFiles() []*LocalFile {
+	res := []*LocalFile{}
 	for _, output := range outputs {
-		res = append(res, output.TempFiles...)
+		res = append(res, output.LocalFiles...)
 		for _, reply := range output.Replies {
-			res = append(res, reply.TempFiles...)
+			res = append(res, reply.LocalFiles...)
 		}
 	}
 	return res

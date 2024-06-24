@@ -296,13 +296,13 @@ func (collector *CollectorSlack) slackMessageToOutput(msg slack.Message) (*Outpu
 	text := collector.userCache.replaceAll(msg.Text)
 
 	// Attachment Files
-	files := []*TempFile{}
+	files := []*LocalFile{}
 	for _, slackFile := range msg.Files {
 		tempPath, ok := collector.tempFilePaths[slackFile.ID]
 		if !ok {
 			continue
 		}
-		f := &TempFile{
+		f := &LocalFile{
 			id:        slackFile.ID,
 			timestamp: slackFile.Timestamp.Time(),
 			name:      slackFile.Name,
@@ -312,10 +312,10 @@ func (collector *CollectorSlack) slackMessageToOutput(msg slack.Message) (*Outpu
 	}
 
 	return &Output{
-		Timestamp: timestamp,
-		Username:  displayName,
-		Text:      text,
-		TempFiles: files,
+		Timestamp:  timestamp,
+		Username:   displayName,
+		Text:       text,
+		LocalFiles: files,
 	}, nil
 }
 
@@ -351,7 +351,7 @@ func (collector *CollectorSlack) getAllFiles(ctx context.Context) error {
 }
 
 func (collector *CollectorSlack) getFileAndPutTemporaryPath(ctx context.Context, slackFile slack.File) (string, error) {
-	path := path.Join(collector.archiveConfig.TempFileDir, slackFile.ID)
+	path := path.Join(collector.archiveConfig.LocalFileDir, slackFile.ID)
 	if _, ok := collector.tempFilePaths[slackFile.ID]; ok {
 		// Already downloaded
 		return path, nil
