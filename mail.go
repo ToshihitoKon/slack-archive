@@ -52,7 +52,10 @@ func toMIMEBody(data []byte, boundary string) ([]byte, error) {
 
 	enc := make([]byte, base64.StdEncoding.EncodedLen(len(data)))
 	base64.StdEncoding.Encode(enc, data)
-	part.Write(enc)
+	if _, err := part.Write(enc); err != nil {
+		bodyWriter.Close()
+		return nil, err
+	}
 
 	bodyWriter.Close()
 	return body.Bytes(), nil
