@@ -12,7 +12,7 @@ type FormatterText struct{}
 
 var _ FormatterInterface = (*FormatterText)(nil)
 
-func (f *FormatterText) WriteFileName(file *TempFile) string {
+func (f *FormatterText) WriteFileName(file *LocalFile) string {
 	return path.Join(fmt.Sprintf("%s_%s", file.id, file.name))
 }
 func (f *FormatterText) Format(outputs Outputs) []byte {
@@ -26,7 +26,7 @@ func (f *FormatterText) Format(outputs Outputs) []byte {
 			output.Username,
 			output.Text,
 		)
-		for _, tfile := range output.TempFiles {
+		for _, tfile := range output.LocalFiles {
 			text += fmt.Sprintf("\n(file: %s)", f.WriteFileName(tfile))
 		}
 		texts = append(texts, text)
@@ -40,7 +40,7 @@ func (f *FormatterText) Format(outputs Outputs) []byte {
 				reply.Username,
 				strings.ReplaceAll(reply.Text, "\n", "\n | "),
 			)
-			for _, tfile := range reply.TempFiles {
+			for _, tfile := range reply.LocalFiles {
 				text += fmt.Sprintf("\n | (file: %s)", f.WriteFileName(tfile))
 			}
 			texts = append(texts, text)

@@ -12,33 +12,34 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-type ExporterFile struct {
+type ExporterLocal struct {
 	writer      io.Writer
 	fileSaveDir string
 }
 
-var _ ExporterInterface = (*ExporterFile)(nil)
+var _ TextExporterInterface = (*ExporterLocal)(nil)
+var _ FileExporterInterface = (*ExporterLocal)(nil)
 
-func NewExporterFile() *ExporterFile {
-	saveDir := os.Getenv("SA_EXPORTER_FILE_DIR")
+func NewExporterLocal() *ExporterLocal {
+	saveDir := os.Getenv("SA_EXPORTER_LOCAL_DIR")
 	if saveDir == "" {
-		panic("ExporterFile is require SA_EXPORTER_FILE_DIR")
+		panic("ExporterLocal is require SA_EXPORTER_LOCAL_DIR")
 	}
 
-	return &ExporterFile{
+	return &ExporterLocal{
 		writer:      os.Stdout,
 		fileSaveDir: saveDir,
 	}
 }
 
-func (e *ExporterFile) Write(ctx context.Context, data []byte) error {
+func (e *ExporterLocal) Write(ctx context.Context, data []byte) error {
 	if _, err := e.writer.Write(data); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (e *ExporterFile) WriteFiles(ctx context.Context, files []*TempFile, fileNameFunc func(*TempFile) string) error {
+func (e *ExporterLocal) WriteFiles(ctx context.Context, files []*LocalFile, fileNameFunc func(*LocalFile) string) error {
 	if _, err := os.ReadDir(e.fileSaveDir); err != nil {
 		if err := os.MkdirAll(e.fileSaveDir, 0755); err != nil {
 			return err
@@ -82,7 +83,8 @@ type ExporterS3 struct {
 	filesKeyPrefix  string
 }
 
-var _ ExporterInterface = (*ExporterS3)(nil)
+var _ TextExporterInterface = (*ExporterS3)(nil)
+var _ FileExporterInterface = (*ExporterS3)(nil)
 
 func NewExporterS3(ctx context.Context) (*ExporterS3, error) {
 	cfg, err := awsConfig.LoadDefaultConfig(ctx)
@@ -119,7 +121,7 @@ func (e *ExporterS3) Write(ctx context.Context, data []byte) error {
 	return nil
 }
 
-func (e *ExporterS3) WriteFiles(ctx context.Context, files []*TempFile, fileNameFunc func(*TempFile) string) error {
+func (e *ExporterS3) WriteFiles(ctx context.Context, files []*LocalFile, fileNameFunc func(*LocalFile) string) error {
 	for _, file := range files {
 		var key string = path.Join(e.filesKeyPrefix, fileNameFunc(file))
 		if err := e.putFileToS3(ctx, file.path, key); err != nil {
