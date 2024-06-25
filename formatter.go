@@ -7,7 +7,6 @@ import (
 	"strings"
 )
 
-// Implementations
 type FormatterText struct{}
 
 var _ FormatterInterface = (*FormatterText)(nil)

@@ -38,6 +38,10 @@ func run(ctx context.Context) error {
 	var textExporter TextExporterInterface
 	var fileExporter FileExporterInterface
 	switch config.Exporter {
+	case "none":
+		exp := &ExporterNone{}
+		textExporter = exp
+		fileExporter = exp
 	case "file":
 		exp := NewExporterLocal()
 		textExporter = exp
@@ -49,6 +53,18 @@ func run(ctx context.Context) error {
 		}
 		textExporter = exp
 		fileExporter = exp
+	case "ses":
+		tExp, err := NewTextExporterSES(ctx)
+		if err != nil {
+			return err
+		}
+		textExporter = tExp
+
+		fExp, err := NewExporterS3(ctx)
+		if err != nil {
+			return err
+		}
+		fileExporter = fExp
 	default:
 		return fmt.Errorf("Exporter %s is not available", config.Exporter)
 	}
