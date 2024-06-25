@@ -31,11 +31,11 @@ func NewS3Exporter(ctx context.Context) (*S3Exporter, error) {
 	}
 	s3cli := s3.NewFromConfig(cfg)
 
-	bucket := os.Getenv("SA_EXPORTER_S3_BUCKET")
-	archiveFilename := os.Getenv("SA_EXPORTER_S3_ARCHIVE_FILENAME")
-	filesKeyPrefix := os.Getenv("SA_EXPORTER_S3_FILES_KEY_PREFIX")
+	bucket := os.Getenv("SA_S3_EXPORTER_BUCKET")
+	archiveFilename := os.Getenv("SA_S3_EXPORTER_ARCHIVE_FILENAME")
+	filesKeyPrefix := os.Getenv("SA_S3_EXPORTER_FILES_KEY_PREFIX")
 	if bucket == "" || archiveFilename == "" || filesKeyPrefix == "" {
-		return nil, fmt.Errorf("SA_EXPORTER_S3_BUCKET, SA_EXPORTER_S3_ARCHIVE_FILENAME and SA_EXPORTER_S3_FILES_KEY_PREFIX is required")
+		return nil, fmt.Errorf("SA_S3_EXPORTER_BUCKET, SA_S3_EXPORTER_ARCHIVE_FILENAME and SA_S3_EXPORTER_FILES_KEY_PREFIX is required")
 	}
 
 	return &S3Exporter{
@@ -106,13 +106,13 @@ func NewSESTextExporter(ctx context.Context) (*SESTextExporter, error) {
 	}
 	cli := ses.NewFromConfig(cfg)
 
-	configSetName := os.Getenv("SA_EXPORTER_SES_CONFIGURE_SET_NAME")
-	sourceArn := os.Getenv("SA_EXPORTER_SES_SOURCE_ARN")
-	from := os.Getenv("SA_EXPORTER_SES_FROM")
-	to := os.Getenv("SA_EXPORTER_SES_TO")
-	subject := os.Getenv("SA_EXPORTER_SES_SUBJECT")
+	configSetName := os.Getenv("SA_SES_EXPORTER_CONFIGURE_SET_NAME")
+	sourceArn := os.Getenv("SA_SES_EXPORTER_SOURCE_ARN")
+	from := os.Getenv("SA_SES_EXPORTER_FROM")
+	to := os.Getenv("SA_SES_EXPORTER_TO")
+	subject := os.Getenv("SA_SES_EXPORTER_SUBJECT")
 	if configSetName == "" || sourceArn == "" || from == "" || to == "" || subject == "" {
-		return nil, fmt.Errorf("SA_EXPORTER_SES_{CONFIGURE_SET_NAME, SOURCE_ARN, FROM, TO, SUBJECT} are required")
+		return nil, fmt.Errorf("SA_SES_EXPORTER_{CONFIGURE_SET_NAME, SOURCE_ARN, FROM, TO, SUBJECT} are required")
 	}
 
 	maildata := &Mail{

@@ -18,42 +18,49 @@ func (_ *NoneExporter) WriteFiles(_ context.Context, _ []*LocalFile, _ func(*Loc
 }
 
 type LocalExporter struct {
-	writer      io.Writer
-	fileSaveDir string
+	logFilePath string
+	fileDirPath string
 }
 
 var _ TextExporterInterface = (*LocalExporter)(nil)
 var _ FileExporterInterface = (*LocalExporter)(nil)
 
 func NewLocalExporter() *LocalExporter {
-	saveDir := os.Getenv("SA_EXPORTER_LOCAL_DIR")
-	if saveDir == "" {
-		panic("LocalExporter is require SA_EXPORTER_LOCAL_DIR")
+	logPath := getEnv("SA_LOCAL_EXPORTER_LOGFILE")
+	fileDirPath := getEnv("SA_LOCAL_EXPORTER_FILEDIR")
+	if fileDirPath == "" || logPath == "" {
+		panic("SA_LOCAL_EXPORTER_{LOGFILE, FILEDIR} are required")
 	}
 
 	return &LocalExporter{
-		writer:      os.Stdout,
-		fileSaveDir: saveDir,
+		logFilePath: logPath,
+		fileDirPath: fileDirPath,
 	}
 }
 
 func (e *LocalExporter) Write(ctx context.Context, data []byte) error {
-	if _, err := e.writer.Write(data); err != nil {
+	f, err := os.OpenFile(e.logFilePath, os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	if _, err := f.Write(data); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (e *LocalExporter) WriteFiles(ctx context.Context, files []*LocalFile, fileNameFunc func(*LocalFile) string) error {
-	if _, err := os.ReadDir(e.fileSaveDir); err != nil {
-		if err := os.MkdirAll(e.fileSaveDir, 0755); err != nil {
+	if _, err := os.ReadDir(e.fileDirPath); err != nil {
+		if err := os.MkdirAll(e.fileDirPath, 0755); err != nil {
 			return err
 		}
 	}
 	logger.Printf("WriteFile files num %d\n", len(files))
 	for _, file := range files {
 		srcPath := file.path
-		dstPath := path.Join(e.fileSaveDir, fileNameFunc(file))
+		dstPath := path.Join(e.fileDirPath, fileNameFunc(file))
 		if err := copy(srcPath, dstPath); err != nil {
 			return err
 		}

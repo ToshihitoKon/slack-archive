@@ -2,7 +2,6 @@ package archive
 
 import (
 	"fmt"
-	"os"
 	"path"
 	"sort"
 	"strings"
@@ -15,7 +14,7 @@ type TextFormatter struct {
 var _ FormatterInterface = (*TextFormatter)(nil)
 
 func NewTextFormatter() *TextFormatter {
-	replyIndent := os.Getenv("SA_TEXT_FORMATTER_REPLY_INDENT")
+	replyIndent := getEnv("SA_TEXT_FORMATTER_REPLY_INDENT")
 	if replyIndent == "" {
 		replyIndent = " | "
 	}
