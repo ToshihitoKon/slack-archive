@@ -7,14 +7,14 @@ import (
 	"strings"
 )
 
-type FormatterText struct{}
+type TextFormatter struct{}
 
-var _ FormatterInterface = (*FormatterText)(nil)
+var _ FormatterInterface = (*TextFormatter)(nil)
 
-func (f *FormatterText) WriteFileName(file *LocalFile) string {
+func (f *TextFormatter) WriteFileName(file *LocalFile) string {
 	return path.Join(fmt.Sprintf("%s_%s", file.id, file.name))
 }
-func (f *FormatterText) Format(outputs Outputs) []byte {
+func (f *TextFormatter) Format(outputs Outputs) []byte {
 	sort.Slice(outputs, func(i, j int) bool { return outputs[i].Timestamp.Before(outputs[j].Timestamp) })
 
 	texts := []string{}

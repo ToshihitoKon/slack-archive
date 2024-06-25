@@ -12,7 +12,7 @@ import (
 	"github.com/slack-go/slack"
 )
 
-type CollectorSlackConfig struct {
+type SlackCollectorConfig struct {
 	Token   string
 	Channel string
 
@@ -23,8 +23,8 @@ type CollectorSlackConfig struct {
 	RetrivalLimit int
 }
 
-func NewCollectorSlackConfig(archiveConf *Config) *CollectorSlackConfig {
-	conf := &CollectorSlackConfig{}
+func NewSlackCollectorConfig(archiveConf *Config) *SlackCollectorConfig {
+	conf := &SlackCollectorConfig{}
 	conf.HistoryLimit = 200
 	conf.RetrivalLimit = 10
 
@@ -42,9 +42,9 @@ func NewCollectorSlackConfig(archiveConf *Config) *CollectorSlackConfig {
 }
 
 // Collector
-type CollectorSlack struct {
+type SlackCollector struct {
 	slackClient   *slack.Client
-	config        *CollectorSlackConfig
+	config        *SlackCollectorConfig
 	archiveConfig *Config
 
 	// NOTE: slack.MessageのFilesはなぜかSize=0のファイルが飛んでくる
@@ -58,10 +58,10 @@ type CollectorSlack struct {
 }
 
 // Interface implementation check
-var _ CollectorInterface = (*CollectorSlack)(nil)
+var _ CollectorInterface = (*SlackCollector)(nil)
 
-func NewCollectorSlack(conf *CollectorSlackConfig, aConf *Config) *CollectorSlack {
-	return &CollectorSlack{
+func NewSlackCollector(conf *SlackCollectorConfig, aConf *Config) *SlackCollector {
+	return &SlackCollector{
 		slackClient:   slack.New(conf.Token),
 		config:        conf,
 		archiveConfig: aConf,
@@ -72,7 +72,7 @@ func NewCollectorSlack(conf *CollectorSlackConfig, aConf *Config) *CollectorSlac
 	}
 }
 
-func (collector *CollectorSlack) Execute(ctx context.Context) (Outputs, error) {
+func (collector *SlackCollector) Execute(ctx context.Context) (Outputs, error) {
 	if err := collector.getHistoryMessages(ctx); err != nil {
 		return nil, err
 	}
@@ -97,7 +97,7 @@ func (collector *CollectorSlack) Execute(ctx context.Context) (Outputs, error) {
 	return outputs, nil
 }
 
-func (collector *CollectorSlack) getHistoryMessages(ctx context.Context) error {
+func (collector *SlackCollector) getHistoryMessages(ctx context.Context) error {
 	client := collector.slackClient
 	config := collector.config
 
@@ -142,7 +142,7 @@ func (collector *CollectorSlack) getHistoryMessages(ctx context.Context) error {
 	return nil
 }
 
-func (collector *CollectorSlack) getHistoryMessagesInThread(ctx context.Context) error {
+func (collector *SlackCollector) getHistoryMessagesInThread(ctx context.Context) error {
 	client := collector.slackClient
 	config := collector.config
 
@@ -198,7 +198,7 @@ func (collector *CollectorSlack) getHistoryMessagesInThread(ctx context.Context)
 	return nil
 }
 
-func (collector *CollectorSlack) getUserdata(ctx context.Context) error {
+func (collector *SlackCollector) getUserdata(ctx context.Context) error {
 	for _, msg := range collector.messages {
 		collector.userCache.putIfNotExist(msg.User, "")
 		// NOTE: リアクションのアーカイブ非対応なのでユーザーID検索もスキップ
@@ -221,7 +221,7 @@ func (collector *CollectorSlack) getUserdata(ctx context.Context) error {
 	return nil
 }
 
-func (collector *CollectorSlack) getUsername(ctx context.Context, uid string) (string, error) {
+func (collector *SlackCollector) getUsername(ctx context.Context, uid string) (string, error) {
 	logger.Printf("GetUserProfileContext UserID:%s\n", uid)
 	uprof, err := collector.slackClient.GetUserProfileContext(ctx, &slack.GetUserProfileParameters{
 		UserID:        uid,
@@ -237,7 +237,7 @@ type userCacheClient struct {
 	cache map[string]string
 }
 
-func (collector *CollectorSlack) outputs() (Outputs, error) {
+func (collector *SlackCollector) outputs() (Outputs, error) {
 	var outputs Outputs
 
 	for _, msg := range collector.messages {
@@ -276,7 +276,7 @@ func (collector *CollectorSlack) outputs() (Outputs, error) {
 	return outputs, nil
 }
 
-func (collector *CollectorSlack) slackMessageToOutput(msg slack.Message) (*Output, error) {
+func (collector *SlackCollector) slackMessageToOutput(msg slack.Message) (*Output, error) {
 	var displayName string
 	if msg.Username != "" {
 		displayName = msg.Username
@@ -319,7 +319,7 @@ func (collector *CollectorSlack) slackMessageToOutput(msg slack.Message) (*Outpu
 	}, nil
 }
 
-func (collector *CollectorSlack) getAllFiles(ctx context.Context) error {
+func (collector *SlackCollector) getAllFiles(ctx context.Context) error {
 	files := []slack.File{}
 	for _, msg := range collector.messages {
 		for _, f := range msg.Files {
@@ -350,7 +350,7 @@ func (collector *CollectorSlack) getAllFiles(ctx context.Context) error {
 	return nil
 }
 
-func (collector *CollectorSlack) getFileAndPutTemporaryPath(ctx context.Context, slackFile slack.File) (string, error) {
+func (collector *SlackCollector) getFileAndPutTemporaryPath(ctx context.Context, slackFile slack.File) (string, error) {
 	path := path.Join(collector.archiveConfig.LocalFileDir, slackFile.ID)
 	if _, ok := collector.tempFilePaths[slackFile.ID]; ok {
 		// Already downloaded
@@ -389,7 +389,7 @@ func (ucc *userCacheClient) replaceAll(str string) string {
 	return result
 }
 
-func (collector *CollectorSlack) userdataFetchAll(ctx context.Context) error {
+func (collector *SlackCollector) userdataFetchAll(ctx context.Context) error {
 	for uid, name := range collector.userCache.cache {
 		if name == "" {
 			displayName, err := collector.getUsername(ctx, uid)

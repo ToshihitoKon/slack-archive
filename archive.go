@@ -24,13 +24,13 @@ func run(ctx context.Context) error {
 		os.RemoveAll(config.LocalFileDir)
 	}()
 
-	slackCollectorConfig := NewCollectorSlackConfig(config)
-	collector := NewCollectorSlack(slackCollectorConfig, config)
+	slackCollectorConfig := NewSlackCollectorConfig(config)
+	collector := NewSlackCollector(slackCollectorConfig, config)
 
 	var formatter FormatterInterface
 	switch config.Format {
 	case "text":
-		formatter = &FormatterText{}
+		formatter = &TextFormatter{}
 	default:
 		return fmt.Errorf("Format %s is not available", config.Exporter)
 	}
@@ -39,28 +39,28 @@ func run(ctx context.Context) error {
 	var fileExporter FileExporterInterface
 	switch config.Exporter {
 	case "none":
-		exp := &ExporterNone{}
+		exp := &NoneExporter{}
 		textExporter = exp
 		fileExporter = exp
 	case "file":
-		exp := NewExporterLocal()
+		exp := NewLocalExporter()
 		textExporter = exp
 		fileExporter = exp
 	case "s3":
-		exp, err := NewExporterS3(ctx)
+		exp, err := NewS3Exporter(ctx)
 		if err != nil {
 			return err
 		}
 		textExporter = exp
 		fileExporter = exp
 	case "ses":
-		tExp, err := NewTextExporterSES(ctx)
+		tExp, err := NewSESTextExporter(ctx)
 		if err != nil {
 			return err
 		}
 		textExporter = tExp
 
-		fExp, err := NewExporterS3(ctx)
+		fExp, err := NewS3Exporter(ctx)
 		if err != nil {
 			return err
 		}

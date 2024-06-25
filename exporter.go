@@ -7,44 +7,44 @@ import (
 	"path"
 )
 
-type ExporterNone struct{}
+type NoneExporter struct{}
 
-var _ TextExporterInterface = (*ExporterNone)(nil)
-var _ FileExporterInterface = (*ExporterNone)(nil)
+var _ TextExporterInterface = (*NoneExporter)(nil)
+var _ FileExporterInterface = (*NoneExporter)(nil)
 
-func (_ *ExporterNone) Write(_ context.Context, _ []byte) error { return nil }
-func (_ *ExporterNone) WriteFiles(_ context.Context, _ []*LocalFile, _ func(*LocalFile) string) error {
+func (_ *NoneExporter) Write(_ context.Context, _ []byte) error { return nil }
+func (_ *NoneExporter) WriteFiles(_ context.Context, _ []*LocalFile, _ func(*LocalFile) string) error {
 	return nil
 }
 
-type ExporterLocal struct {
+type LocalExporter struct {
 	writer      io.Writer
 	fileSaveDir string
 }
 
-var _ TextExporterInterface = (*ExporterLocal)(nil)
-var _ FileExporterInterface = (*ExporterLocal)(nil)
+var _ TextExporterInterface = (*LocalExporter)(nil)
+var _ FileExporterInterface = (*LocalExporter)(nil)
 
-func NewExporterLocal() *ExporterLocal {
+func NewLocalExporter() *LocalExporter {
 	saveDir := os.Getenv("SA_EXPORTER_LOCAL_DIR")
 	if saveDir == "" {
-		panic("ExporterLocal is require SA_EXPORTER_LOCAL_DIR")
+		panic("LocalExporter is require SA_EXPORTER_LOCAL_DIR")
 	}
 
-	return &ExporterLocal{
+	return &LocalExporter{
 		writer:      os.Stdout,
 		fileSaveDir: saveDir,
 	}
 }
 
-func (e *ExporterLocal) Write(ctx context.Context, data []byte) error {
+func (e *LocalExporter) Write(ctx context.Context, data []byte) error {
 	if _, err := e.writer.Write(data); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (e *ExporterLocal) WriteFiles(ctx context.Context, files []*LocalFile, fileNameFunc func(*LocalFile) string) error {
+func (e *LocalExporter) WriteFiles(ctx context.Context, files []*LocalFile, fileNameFunc func(*LocalFile) string) error {
 	if _, err := os.ReadDir(e.fileSaveDir); err != nil {
 		if err := os.MkdirAll(e.fileSaveDir, 0755); err != nil {
 			return err

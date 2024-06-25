@@ -14,17 +14,17 @@ import (
 	sestypes "github.com/aws/aws-sdk-go-v2/service/ses/types"
 )
 
-type ExporterS3 struct {
+type S3Exporter struct {
 	s3Client        *s3.Client
 	bucket          string
 	archiveFilename string
 	filesKeyPrefix  string
 }
 
-var _ TextExporterInterface = (*ExporterS3)(nil)
-var _ FileExporterInterface = (*ExporterS3)(nil)
+var _ TextExporterInterface = (*S3Exporter)(nil)
+var _ FileExporterInterface = (*S3Exporter)(nil)
 
-func NewExporterS3(ctx context.Context) (*ExporterS3, error) {
+func NewS3Exporter(ctx context.Context) (*S3Exporter, error) {
 	cfg, err := awsConfig.LoadDefaultConfig(ctx)
 	if err != nil {
 		return nil, err
@@ -38,7 +38,7 @@ func NewExporterS3(ctx context.Context) (*ExporterS3, error) {
 		return nil, fmt.Errorf("SA_EXPORTER_S3_BUCKET, SA_EXPORTER_S3_ARCHIVE_FILENAME and SA_EXPORTER_S3_FILES_KEY_PREFIX is required")
 	}
 
-	return &ExporterS3{
+	return &S3Exporter{
 		s3Client:        s3cli,
 		bucket:          bucket,
 		archiveFilename: archiveFilename,
@@ -46,7 +46,7 @@ func NewExporterS3(ctx context.Context) (*ExporterS3, error) {
 	}, nil
 }
 
-func (e *ExporterS3) Write(ctx context.Context, data []byte) error {
+func (e *S3Exporter) Write(ctx context.Context, data []byte) error {
 	params := &s3.PutObjectInput{
 		Bucket: &e.bucket,
 		Key:    &e.archiveFilename,
@@ -59,7 +59,7 @@ func (e *ExporterS3) Write(ctx context.Context, data []byte) error {
 	return nil
 }
 
-func (e *ExporterS3) WriteFiles(ctx context.Context, files []*LocalFile, fileNameFunc func(*LocalFile) string) error {
+func (e *S3Exporter) WriteFiles(ctx context.Context, files []*LocalFile, fileNameFunc func(*LocalFile) string) error {
 	for _, file := range files {
 		var key string = path.Join(e.filesKeyPrefix, fileNameFunc(file))
 		if err := e.putFileToS3(ctx, file.path, key); err != nil {
@@ -70,7 +70,7 @@ func (e *ExporterS3) WriteFiles(ctx context.Context, files []*LocalFile, fileNam
 	return nil
 }
 
-func (e *ExporterS3) putFileToS3(ctx context.Context, srcPath, dstKey string) error {
+func (e *S3Exporter) putFileToS3(ctx context.Context, srcPath, dstKey string) error {
 	logger.Printf("s3.PutObject %s -> %s/%s\n", srcPath, e.bucket, dstKey)
 	f, err := os.Open(srcPath)
 	if err != nil {
@@ -90,16 +90,16 @@ func (e *ExporterS3) putFileToS3(ctx context.Context, srcPath, dstKey string) er
 	return nil
 }
 
-type TextExporterSES struct {
+type SESTextExporter struct {
 	sesClient     *ses.Client
 	configSetName string
 	sourceArn     string
 	maildata      *Mail
 }
 
-var _ TextExporterInterface = (*TextExporterSES)(nil)
+var _ TextExporterInterface = (*SESTextExporter)(nil)
 
-func NewTextExporterSES(ctx context.Context) (*TextExporterSES, error) {
+func NewSESTextExporter(ctx context.Context) (*SESTextExporter, error) {
 	cfg, err := awsConfig.LoadDefaultConfig(ctx)
 	if err != nil {
 		return nil, err
@@ -122,7 +122,7 @@ func NewTextExporterSES(ctx context.Context) (*TextExporterSES, error) {
 		Boundary: boundary(),
 	}
 
-	return &TextExporterSES{
+	return &SESTextExporter{
 		sesClient:     cli,
 		configSetName: configSetName,
 		sourceArn:     sourceArn,
@@ -130,7 +130,7 @@ func NewTextExporterSES(ctx context.Context) (*TextExporterSES, error) {
 	}, nil
 }
 
-func (e *TextExporterSES) Write(ctx context.Context, data []byte) error {
+func (e *SESTextExporter) Write(ctx context.Context, data []byte) error {
 	mailbody, err := toMIMEBody(data, e.maildata.Boundary)
 	if err != nil {
 		return err
@@ -143,7 +143,7 @@ func (e *TextExporterSES) Write(ctx context.Context, data []byte) error {
 	return nil
 }
 
-func (e *TextExporterSES) sendMail(ctx context.Context, maildata *Mail) error {
+func (e *SESTextExporter) sendMail(ctx context.Context, maildata *Mail) error {
 	header := maildata.headerString()
 
 	rawMessage := append([]byte(header), maildata.Body...)
