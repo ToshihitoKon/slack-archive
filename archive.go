@@ -24,13 +24,13 @@ func run(ctx context.Context) error {
 		os.RemoveAll(config.LocalFileDir)
 	}()
 
-	slackCollectorConfig := NewCollectorSlackConfig(config)
-	collector := NewCollectorSlack(slackCollectorConfig, config)
+	slackCollectorConfig := NewSlackCollectorConfig(config)
+	collector := NewSlackCollector(slackCollectorConfig, config)
 
 	var formatter FormatterInterface
 	switch config.Format {
 	case "text":
-		formatter = &FormatterText{}
+		formatter = &TextFormatter{}
 	default:
 		return fmt.Errorf("Format %s is not available", config.Exporter)
 	}
