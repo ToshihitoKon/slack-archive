@@ -106,11 +106,11 @@ func NewSESTextExporter(ctx context.Context) (*SESTextExporter, error) {
 	}
 	cli := ses.NewFromConfig(cfg)
 
-	configSetName := os.Getenv("SA_SES_EXPORTER_CONFIGURE_SET_NAME")
-	sourceArn := os.Getenv("SA_SES_EXPORTER_SOURCE_ARN")
-	from := os.Getenv("SA_SES_EXPORTER_FROM")
-	to := os.Getenv("SA_SES_EXPORTER_TO")
-	subject := os.Getenv("SA_SES_EXPORTER_SUBJECT")
+	configSetName := getEnv("SA_SES_EXPORTER_CONFIGURE_SET_NAME")
+	sourceArn := getEnv("SA_SES_EXPORTER_SOURCE_ARN")
+	from := getEnv("SA_SES_EXPORTER_FROM")
+	to := getEnv("SA_SES_EXPORTER_TO")
+	subject := getEnv("SA_SES_EXPORTER_SUBJECT")
 	if configSetName == "" || sourceArn == "" || from == "" || to == "" || subject == "" {
 		return nil, fmt.Errorf("SA_SES_EXPORTER_{CONFIGURE_SET_NAME, SOURCE_ARN, FROM, TO, SUBJECT} are required")
 	}
