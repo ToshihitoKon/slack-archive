@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 	"time"
 
 	archive "github.com/ToshihitoKon/slack-archive"
@@ -31,5 +32,6 @@ func (r *archiveRequest) toConfig() (*archive.Config, error) {
 		Until:     until,
 		Exporter:  "ses",
 		Formatter: "text",
+		Logger:    slog.Default(),
 	}, nil
 }
