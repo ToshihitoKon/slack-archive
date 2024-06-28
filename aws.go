@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"path"
 
@@ -19,12 +20,14 @@ type S3Exporter struct {
 	bucket          string
 	archiveFilename string
 	filesKeyPrefix  string
+
+	logger *slog.Logger
 }
 
 var _ TextExporterInterface = (*S3Exporter)(nil)
 var _ FileExporterInterface = (*S3Exporter)(nil)
 
-func NewS3Exporter(ctx context.Context) (*S3Exporter, error) {
+func NewS3Exporter(ctx context.Context, logger *slog.Logger) (*S3Exporter, error) {
 	cfg, err := awsConfig.LoadDefaultConfig(ctx)
 	if err != nil {
 		return nil, err
@@ -43,6 +46,7 @@ func NewS3Exporter(ctx context.Context) (*S3Exporter, error) {
 		bucket:          bucket,
 		archiveFilename: archiveFilename,
 		filesKeyPrefix:  filesKeyPrefix,
+		logger:          logger,
 	}, nil
 }
 
@@ -71,7 +75,7 @@ func (e *S3Exporter) WriteFiles(ctx context.Context, files []*LocalFile, fileNam
 }
 
 func (e *S3Exporter) putFileToS3(ctx context.Context, srcPath, dstKey string) error {
-	logger.Printf("s3.PutObject %s -> %s/%s\n", srcPath, e.bucket, dstKey)
+	e.logger.Info("s3.PutObject", "source", srcPath, "destination", path.Join(e.bucket, dstKey))
 	f, err := os.Open(srcPath)
 	if err != nil {
 		return err
@@ -95,11 +99,13 @@ type SESTextExporter struct {
 	configSetName string
 	sourceArn     string
 	maildata      *Mail
+
+	logger *slog.Logger
 }
 
 var _ TextExporterInterface = (*SESTextExporter)(nil)
 
-func NewSESTextExporter(ctx context.Context) (*SESTextExporter, error) {
+func NewSESTextExporter(ctx context.Context, logger *slog.Logger) (*SESTextExporter, error) {
 	cfg, err := awsConfig.LoadDefaultConfig(ctx)
 	if err != nil {
 		return nil, err
@@ -127,6 +133,7 @@ func NewSESTextExporter(ctx context.Context) (*SESTextExporter, error) {
 		configSetName: configSetName,
 		sourceArn:     sourceArn,
 		maildata:      maildata,
+		logger:        logger,
 	}, nil
 }
 
@@ -147,7 +154,7 @@ func (e *SESTextExporter) sendMail(ctx context.Context, maildata *Mail) error {
 	header := maildata.headerString()
 
 	rawMessage := append([]byte(header), maildata.Body...)
-	logger.Println(string(rawMessage))
+	e.logger.Info(string(rawMessage))
 
 	msg := &sestypes.RawMessage{
 		Data: rawMessage,

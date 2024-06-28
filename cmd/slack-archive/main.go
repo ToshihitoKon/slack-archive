@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"time"
 
@@ -28,6 +29,7 @@ func parseFlags() *archive.Config {
 	conf := &archive.Config{
 		Formatter: *formatter,
 		Exporter:  *exporter,
+		Logger:    slog.Default(),
 	}
 
 	d, err := os.MkdirTemp("", fmt.Sprintf("sa_%d", time.Now().Unix()))
