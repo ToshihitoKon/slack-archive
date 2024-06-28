@@ -5,20 +5,16 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"time"
-
-	flag "github.com/spf13/pflag"
 )
 
 var logger = log.New(os.Stderr, "[info]", log.Lshortfile)
 
-func Run() error {
+func Run(conf *Config) error {
 	ctx := context.Background()
-	return run(ctx)
+	return run(ctx, conf)
 }
 
-func run(ctx context.Context) error {
-	config := newConfig()
+func run(ctx context.Context, config *Config) error {
 	defer func() {
 		logger.Printf("Remove %s", config.LocalFileDir)
 		os.RemoveAll(config.LocalFileDir)
@@ -84,64 +80,4 @@ func run(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-type Config struct {
-	Since     time.Time
-	Until     time.Time
-	Exporter  string
-	Formatter string
-
-	LocalFileDir string
-}
-
-func newConfig() *Config {
-	since := flag.Int64("since", 0, "Archive message since")
-	until := flag.Int64("until", 0, "Archive message until")
-	duration := flag.String("duration", "", "Archive message duration")
-	formatter := flag.String("formatter", "text", "Log format default: text")
-	exporter := flag.String("exporter", "local", "Exporter default: local")
-	flag.Parse()
-
-	conf := &Config{
-		Formatter: *formatter,
-		Exporter:  *exporter,
-	}
-
-	d, err := os.MkdirTemp("", fmt.Sprintf("sa_%d", time.Now().Unix()))
-	if err != nil {
-		panic(err)
-	}
-	conf.LocalFileDir = d
-
-	if *duration != "" {
-		if *since != 0 && *until != 0 {
-			panic("You can't specify both since and until when specify duration")
-		}
-		dur, err := time.ParseDuration(*duration)
-		if err != nil {
-			panic(err)
-		}
-
-		switch {
-		case *since != 0:
-			conf.Since = time.Unix(*since, 0)
-			conf.Until = conf.Since.Add(dur * 1)
-		case *until != 0:
-			conf.Until = time.Unix(*until, 0)
-			conf.Since = conf.Until.Add(dur * -1)
-		default:
-			conf.Until = time.Now()
-			conf.Since = conf.Until.Add(dur * -1)
-		}
-	} else {
-		if *since != 0 {
-			conf.Since = time.Unix(*since, 0)
-		}
-		if *until != 0 {
-			conf.Until = time.Unix(*until, 0)
-		}
-	}
-
-	return conf
 }
