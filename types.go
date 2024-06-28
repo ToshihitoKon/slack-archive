@@ -1,6 +1,9 @@
 package archive
 
-import "time"
+import (
+	"log/slog"
+	"time"
+)
 
 type Config struct {
 	Since     time.Time
@@ -9,6 +12,7 @@ type Config struct {
 	Formatter string
 
 	LocalFileDir string
+	Logger       *slog.Logger
 }
 
 type LocalFile struct {

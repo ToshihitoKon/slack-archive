@@ -3,11 +3,8 @@ package archive
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 )
-
-var logger = log.New(os.Stderr, "[info]", log.Lshortfile)
 
 func Run(conf *Config) error {
 	ctx := context.Background()
@@ -16,12 +13,12 @@ func Run(conf *Config) error {
 
 func run(ctx context.Context, config *Config) error {
 	defer func() {
-		logger.Printf("Remove %s", config.LocalFileDir)
+		config.Logger.Info(fmt.Sprintf("Remove %s", config.LocalFileDir))
 		os.RemoveAll(config.LocalFileDir)
 	}()
 
 	slackCollectorConfig := NewSlackCollectorConfig(config)
-	collector := NewSlackCollector(slackCollectorConfig, config)
+	collector := NewSlackCollector(config.Logger, slackCollectorConfig, config)
 
 	var formatter FormatterInterface
 	switch config.Formatter {
@@ -39,24 +36,24 @@ func run(ctx context.Context, config *Config) error {
 		textExporter = exp
 		fileExporter = exp
 	case "local":
-		exp := NewLocalExporter()
+		exp := NewLocalExporter(config.Logger)
 		textExporter = exp
 		fileExporter = exp
 	case "s3":
-		exp, err := NewS3Exporter(ctx)
+		exp, err := NewS3Exporter(ctx, config.Logger)
 		if err != nil {
 			return err
 		}
 		textExporter = exp
 		fileExporter = exp
 	case "ses":
-		tExp, err := NewSESTextExporter(ctx)
+		tExp, err := NewSESTextExporter(ctx, config.Logger)
 		if err != nil {
 			return err
 		}
 		textExporter = tExp
 
-		fExp, err := NewS3Exporter(ctx)
+		fExp, err := NewS3Exporter(ctx, config.Logger)
 		if err != nil {
 			return err
 		}

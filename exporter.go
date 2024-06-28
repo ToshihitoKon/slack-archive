@@ -3,6 +3,7 @@ package archive
 import (
 	"context"
 	"io"
+	"log/slog"
 	"os"
 	"path"
 )
@@ -20,12 +21,14 @@ func (_ *NoneExporter) WriteFiles(_ context.Context, _ []*LocalFile, _ func(*Loc
 type LocalExporter struct {
 	logFilePath string
 	fileDirPath string
+
+	logger *slog.Logger
 }
 
 var _ TextExporterInterface = (*LocalExporter)(nil)
 var _ FileExporterInterface = (*LocalExporter)(nil)
 
-func NewLocalExporter() *LocalExporter {
+func NewLocalExporter(logger *slog.Logger) *LocalExporter {
 	logPath := getEnv("SA_LOCAL_EXPORTER_LOGFILE")
 	fileDirPath := getEnv("SA_LOCAL_EXPORTER_FILEDIR")
 	if fileDirPath == "" || logPath == "" {
@@ -35,6 +38,7 @@ func NewLocalExporter() *LocalExporter {
 	return &LocalExporter{
 		logFilePath: logPath,
 		fileDirPath: fileDirPath,
+		logger:      logger,
 	}
 }
 
@@ -57,10 +61,11 @@ func (e *LocalExporter) WriteFiles(ctx context.Context, files []*LocalFile, file
 			return err
 		}
 	}
-	logger.Printf("WriteFile files num %d\n", len(files))
+	e.logger.Info("WriteFile count", "num", len(files))
 	for _, file := range files {
 		srcPath := file.path
 		dstPath := path.Join(e.fileDirPath, fileNameFunc(file))
+		e.logger.Info("WriteFile copy", "source", srcPath, "destination", dstPath)
 		if err := copy(srcPath, dstPath); err != nil {
 			return err
 		}
@@ -69,7 +74,6 @@ func (e *LocalExporter) WriteFiles(ctx context.Context, files []*LocalFile, file
 }
 
 func copy(srcPath, dstPath string) error {
-	logger.Printf("WriteFile %s -> %s\n", srcPath, dstPath)
 	src, err := os.Open(srcPath)
 	if err != nil {
 		return err
