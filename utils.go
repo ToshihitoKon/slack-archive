@@ -22,3 +22,12 @@ func getEnv(env string) string {
 	}
 	return ""
 }
+
+func firstString(slice []string) string {
+	for _, s := range slice {
+		if s != "" {
+			return s
+		}
+	}
+	return ""
+}

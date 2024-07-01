@@ -9,13 +9,13 @@ import (
 )
 
 type archiveRequest struct {
-	SlackToken   string `json:"slack_token"`
-	SlackChannel string `json:"slack_channel"`
-	Since        string `json:"since"`
-	Until        string `json:"until"`
-	To           string `json:"to"`
-	S3Bucket     string `json:"s_3_bucket,omitempty"`
-	S3Key        string `json:"s_3_key,omitempty"`
+	SlackToken   string   `json:"slack_token"`
+	SlackChannel string   `json:"slack_channel"`
+	Since        string   `json:"since"`
+	Until        string   `json:"until"`
+	To           []string `json:"to"`
+	S3Bucket     string   `json:"s3_bucket,omitempty"`
+	S3Key        string   `json:"s3_key,omitempty"`
 }
 
 func (r *archiveRequest) toConfig() (*archive.Config, error) {
@@ -32,6 +32,14 @@ func (r *archiveRequest) toConfig() (*archive.Config, error) {
 		Until:     until,
 		Exporter:  "ses",
 		Formatter: "text",
-		Logger:    slog.Default(),
+
+		SlackToken:   r.SlackToken,
+		SlackChannel: r.SlackChannel,
+
+		SESTo:     r.To,
+		S3Bucket:  r.S3Bucket,
+		S3FileKey: r.S3Key,
+
+		Logger: slog.Default(),
 	}, nil
 }

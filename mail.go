@@ -7,11 +7,12 @@ import (
 	"math/rand"
 	"mime/multipart"
 	"net/textproto"
+	"strings"
 )
 
 type Mail struct {
 	From     string
-	To       string
+	To       []string
 	Subject  string
 	Body     []byte
 	Boundary string
@@ -26,7 +27,7 @@ Content-Type: multipart/mixed; boundary=%s
 
 `,
 		m.From,
-		m.To,
+		strings.Join(m.To, ", "),
 		m.Subject,
 		m.Boundary,
 	)

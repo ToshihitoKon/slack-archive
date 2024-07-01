@@ -40,20 +40,20 @@ func run(ctx context.Context, config *Config) error {
 		textExporter = exp
 		fileExporter = exp
 	case "s3":
-		exp, err := NewS3Exporter(ctx, config.Logger)
+		exp, err := NewS3Exporter(ctx, config)
 		if err != nil {
 			return err
 		}
 		textExporter = exp
 		fileExporter = exp
 	case "ses":
-		tExp, err := NewSESTextExporter(ctx, config.Logger)
+		tExp, err := NewSESTextExporter(ctx, config)
 		if err != nil {
 			return err
 		}
 		textExporter = tExp
 
-		fExp, err := NewS3Exporter(ctx, config.Logger)
+		fExp, err := NewS3Exporter(ctx, config)
 		if err != nil {
 			return err
 		}
