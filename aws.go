@@ -110,7 +110,6 @@ type SESTextExporter struct {
 	sourceArn     string
 	maildata      *Mail
 
-	to     []string
 	logger *slog.Logger
 }
 
