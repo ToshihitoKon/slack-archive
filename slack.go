@@ -29,9 +29,14 @@ func NewSlackCollectorConfig(archiveConf *Config) *SlackCollectorConfig {
 	conf.HistoryLimit = 200
 	conf.RetrivalLimit = 10
 
-	// Get Environment
-	conf.Token = os.Getenv("SA_SLACK_TOKEN")
-	conf.Channel = os.Getenv("SA_SLACK_CHANNEL")
+	conf.Token = firstString([]string{
+		archiveConf.SlackToken,
+		os.Getenv("SA_SLACK_TOKEN"),
+	})
+	conf.Channel = firstString([]string{
+		archiveConf.SlackChannel,
+		os.Getenv("SA_SLACK_CHANNEL"),
+	})
 
 	if !archiveConf.Since.IsZero() {
 		conf.HistryOldest = strconv.FormatInt(archiveConf.Since.Unix(), 10)

@@ -13,6 +13,14 @@ type Config struct {
 
 	LocalFileDir string
 	Logger       *slog.Logger
+
+	SlackToken   string
+	SlackChannel string
+
+	S3Bucket     string
+	S3FileKey    string
+	S3ArchiveKey string
+	SESTo        []string
 }
 
 type LocalFile struct {
