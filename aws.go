@@ -27,36 +27,23 @@ type S3Exporter struct {
 var _ TextExporterInterface = (*S3Exporter)(nil)
 var _ FileExporterInterface = (*S3Exporter)(nil)
 
-func NewS3Exporter(ctx context.Context, config *Config) (*S3Exporter, error) {
+func NewS3Exporter(ctx context.Context, logger *slog.Logger, bucket, archiveFilename, filesKeyPrefix string) (*S3Exporter, error) {
+	if bucket == "" || archiveFilename == "" || filesKeyPrefix == "" {
+		return nil, fmt.Errorf("bucket, archiveFilename and filesKeyPrefix are required.")
+	}
+
 	cfg, err := awsConfig.LoadDefaultConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
 	s3cli := s3.NewFromConfig(cfg)
 
-	bucket := firstString([]string{
-		config.S3Bucket,
-		os.Getenv("SA_S3_EXPORTER_BUCKET"),
-	})
-	filesKeyPrefix := firstString([]string{
-		config.S3FileKey,
-		os.Getenv("SA_S3_EXPORTER_FILES_KEY_PREFIX"),
-	})
-	archiveFilename := firstString([]string{
-		config.S3ArchiveKey,
-		os.Getenv("SA_S3_EXPORTER_ARCHIVE_FILENAME"),
-		path.Join(filesKeyPrefix, "log"),
-	})
-	if bucket == "" || archiveFilename == "" || filesKeyPrefix == "" {
-		return nil, fmt.Errorf("SA_S3_EXPORTER_BUCKET, SA_S3_EXPORTER_ARCHIVE_FILENAME and SA_S3_EXPORTER_FILES_KEY_PREFIX is required")
-	}
-
 	return &S3Exporter{
 		s3Client:        s3cli,
 		bucket:          bucket,
 		archiveFilename: archiveFilename,
 		filesKeyPrefix:  filesKeyPrefix,
-		logger:          config.Logger,
+		logger:          logger,
 	}, nil
 }
 
@@ -115,24 +102,19 @@ type SESTextExporter struct {
 
 var _ TextExporterInterface = (*SESTextExporter)(nil)
 
-func NewSESTextExporter(ctx context.Context, config *Config) (*SESTextExporter, error) {
+func NewSESTextExporter(ctx context.Context, logger *slog.Logger,
+	sesConfigSetName string, sesSourceArn string,
+	from string, to []string, subject string,
+) (*SESTextExporter, error) {
+	if sesConfigSetName == "" || sesSourceArn == "" ||
+		from == "" || len(to) == 0 || subject == "" {
+		return nil, fmt.Errorf("sesConfigSetName, sesSourceArn, from, to and subject are required.")
+	}
 	cfg, err := awsConfig.LoadDefaultConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
 	cli := ses.NewFromConfig(cfg)
-
-	to := config.SESTo
-	configSetName := getEnv("SA_SES_EXPORTER_CONFIGURE_SET_NAME")
-	sourceArn := getEnv("SA_SES_EXPORTER_SOURCE_ARN")
-	from := getEnv("SA_SES_EXPORTER_FROM")
-	if t := getEnv("SA_SES_EXPORTER_TO"); t != "" {
-		to = append(to, t)
-	}
-	subject := getEnv("SA_SES_EXPORTER_SUBJECT")
-	if configSetName == "" || sourceArn == "" || from == "" || len(to) == 0 || subject == "" {
-		return nil, fmt.Errorf("SA_SES_EXPORTER_{CONFIGURE_SET_NAME, SOURCE_ARN, FROM, TO, SUBJECT} are required")
-	}
 
 	maildata := &Mail{
 		From:     from,
@@ -143,10 +125,10 @@ func NewSESTextExporter(ctx context.Context, config *Config) (*SESTextExporter, 
 
 	return &SESTextExporter{
 		sesClient:     cli,
-		configSetName: configSetName,
-		sourceArn:     sourceArn,
+		configSetName: sesConfigSetName,
+		sourceArn:     sesSourceArn,
 		maildata:      maildata,
-		logger:        config.Logger,
+		logger:        logger,
 	}, nil
 }
 
