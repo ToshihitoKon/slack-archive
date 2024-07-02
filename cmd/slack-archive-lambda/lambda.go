@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"log/slog"
 
@@ -12,9 +13,20 @@ import (
 // ref: https://docs.aws.amazon.com/lambda/latest/dg/urls-invocation.html#urls-payloads
 func lambdaHandler(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	logger := slog.Default()
+
+	body := []byte(request.Body)
+	if request.IsBase64Encoded {
+		b, err := base64.StdEncoding.DecodeString(request.Body)
+		if err != nil {
+			logger.Error("failed to base64 decode request.Body", "error", err.Error(), "body", request.Body)
+			return errToAPIGatewayResponse(err, 400), err
+		}
+		body = b
+	}
+
 	req := &archiveRequest{}
-	if err := json.Unmarshal([]byte(request.Body), req); err != nil {
-		logger.Error("failed to unmarshal request.Body", "error", err.Error(), "body", request.Body)
+	if err := json.Unmarshal(body, req); err != nil {
+		logger.Error("failed to unmarshal request.Body", "error", err.Error(), "body", string(body))
 		return errToAPIGatewayResponse(err, 400), err
 	}
 
