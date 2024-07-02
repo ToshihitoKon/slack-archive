@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
 	"log/slog"
 	"os"
 	"time"
@@ -150,7 +149,12 @@ func (c *config) textExporter(ctx context.Context) (archive.TextExporterInterfac
 			to            = []string{archive.Getenv("SES_EXPORTER_TO")}
 			subject       = archive.Getenv("SES_EXPORTER_SUBJECT")
 		)
-		log.Println(configSetName, sourceArn, from, to, subject)
+		c.logger.Info("ses config",
+			"ConfigSetName", configSetName,
+			"SourceArn", sourceArn,
+			"FROM", from,
+			"TO", to,
+			"SUBJECT", subject)
 		exp, err := archive.NewSESTextExporter(ctx, c.logger, configSetName, sourceArn, from, to, subject)
 		if err != nil {
 			return nil, err
