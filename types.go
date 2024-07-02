@@ -6,10 +6,9 @@ import (
 )
 
 type Config struct {
-	Since        time.Time
-	Until        time.Time
-	LocalFileDir string
-	Logger       *slog.Logger
+	Since  time.Time
+	Until  time.Time
+	Logger *slog.Logger
 
 	SlackToken   string
 	SlackChannel string

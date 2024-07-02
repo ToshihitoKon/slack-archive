@@ -35,10 +35,9 @@ func main() {
 	}
 
 	archiveConf := &archive.Config{
-		Since:        conf.since,
-		Until:        conf.until,
-		LocalFileDir: conf.tempFileDir,
-		Logger:       conf.logger,
+		Since:  conf.since,
+		Until:  conf.until,
+		Logger: conf.logger,
 
 		SlackToken:   getEnv("SLACK_TOKEN"),
 		SlackChannel: getEnv("SLACK_CHANNEL"),
@@ -59,7 +58,6 @@ type config struct {
 	formatterName    string
 	textExporterName string
 	fileExporterName string
-	tempFileDir      string
 	logger           *slog.Logger
 }
 
@@ -81,12 +79,6 @@ func (c *config) parseFlags() {
 	c.formatterName = *formatter
 	c.textExporterName = *textExporter
 	c.fileExporterName = *fileExporter
-
-	d, err := os.MkdirTemp("", fmt.Sprintf("sa_%d", time.Now().Unix()))
-	if err != nil {
-		panic(err)
-	}
-	c.tempFileDir = d
 
 	if *duration != "" {
 		if *since != 0 && *until != 0 {

@@ -49,18 +49,20 @@ func NewSlackCollectorConfig(archiveConf *Config) *SlackCollectorConfig {
 
 // Collector
 type SlackCollector struct {
-	slackClient   *slack.Client
 	config        *SlackCollectorConfig
 	archiveConfig *Config
+	slackClient   *slack.Client
+
+	userCache     *userCacheClient
+	messages      []slack.Message
+	replyMessages map[string][]slack.Message
 
 	// NOTE: slack.MessageのFilesはなぜかSize=0のファイルが飛んでくる
 	// messages及びreplyMessagesに入れるタイミングで省くのは難しいので、func getAllFiles()で省き、
 	// 取ってきた一覧をtempFilePathsに入れて、func Outputs() のタイミングで存在するものだけOutputsに
 	// 入れて返す形になっている
-	messages      []slack.Message
-	replyMessages map[string][]slack.Message
+	tempFileDir   string
 	tempFilePaths map[string]string
-	userCache     *userCacheClient
 
 	logger *slog.Logger
 }
@@ -68,16 +70,32 @@ type SlackCollector struct {
 // Interface implementation check
 var _ CollectorInterface = (*SlackCollector)(nil)
 
-func NewSlackCollector(logger *slog.Logger, conf *SlackCollectorConfig, aConf *Config) *SlackCollector {
+func NewSlackCollector(conf *Config, slackConf *SlackCollectorConfig) *SlackCollector {
+	tempFileDirPath, err := os.MkdirTemp("", fmt.Sprintf("sa_%d", time.Now().Unix()))
+	if err != nil {
+		conf.Logger.Error("os.MkdirTemp failed", "function", "NewSlackCollector", "error", err.Error())
+		panic(err)
+	}
+
 	return &SlackCollector{
-		slackClient:   slack.New(conf.Token),
-		config:        conf,
-		archiveConfig: aConf,
+		config:        slackConf,
+		archiveConfig: conf,
+		slackClient:   slack.New(slackConf.Token),
+
+		userCache:     newUserCacheClient(),
 		messages:      []slack.Message{},
 		replyMessages: map[string][]slack.Message{},
+
+		tempFileDir:   tempFileDirPath,
 		tempFilePaths: map[string]string{},
-		userCache:     newUserCacheClient(),
-		logger:        logger,
+
+		logger: conf.Logger,
+	}
+}
+
+func (collector *SlackCollector) Clean() {
+	if err := os.RemoveAll(collector.tempFileDir); err != nil {
+		collector.logger.Error("an error occurred", "function", "os.RemoveAll", "error", err.Error())
 	}
 }
 
@@ -360,7 +378,7 @@ func (collector *SlackCollector) getAllFiles(ctx context.Context) error {
 }
 
 func (collector *SlackCollector) getFileAndPutTemporaryPath(ctx context.Context, slackFile slack.File) (string, error) {
-	path := path.Join(collector.archiveConfig.LocalFileDir, slackFile.ID)
+	path := path.Join(collector.tempFileDir, slackFile.ID)
 	if _, ok := collector.tempFilePaths[slackFile.ID]; ok {
 		// Already downloaded
 		return path, nil
