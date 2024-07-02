@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log/slog"
 
 	archive "github.com/ToshihitoKon/slack-archive"
 )
