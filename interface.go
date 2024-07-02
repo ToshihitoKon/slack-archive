@@ -5,14 +5,18 @@ import (
 )
 
 /* Example
-ctx := context.Background()
-var outputs []*ArchiveOutput
+formatter := NewFormatter()
+textExporter := NewTextExporter()
+fileExporter := NewFileExporter()
 
-collector := &ArchiveCollectorImplement{}
-outputs, _ := collector.Execute(ctx)
+config := &Config{
+	formatter:    formatter,
+	textExporter: textExporter,
+	fileExporter: fileExporter,
+	...
+}
 
-exporter := &ArchiveExporterFileString{ Writer: os.Stdout }
-_ = exporter.Write(ctx, output, os.Stdout)
+Run(context.Background(), config)
 */
 
 type CollectorInterface interface {
