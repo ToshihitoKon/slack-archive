@@ -71,4 +71,4 @@ SA_SES_EXPORTER_SOURCE_ARN=[SES source ARN]
 
 ## Custom Formatter and Exporter
 
-types.goのFormatterInterfaceとTextExporterInterface, FileExporterInterfaceを満たす構造体をConfigに入れることで任意のフォーマットで任意のExport先を追加できます
+interface.goのFormatterInterfaceとTextExporterInterface, FileExporterInterfaceを満たす構造体をConfigに入れることで任意のフォーマットで任意のExport先を追加できます
