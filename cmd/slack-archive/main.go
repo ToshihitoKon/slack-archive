@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/base64"
 	"flag"
 	"fmt"
 	"log"
@@ -39,8 +38,8 @@ func main() {
 		Until:  conf.until,
 		Logger: conf.logger,
 
-		SlackToken:   getEnv("SLACK_TOKEN"),
-		SlackChannel: getEnv("SLACK_CHANNEL"),
+		SlackToken:   archive.Getenv("SLACK_TOKEN"),
+		SlackChannel: archive.Getenv("SLACK_CHANNEL"),
 
 		Formatter:    formatter,
 		TextExporter: textExporter,
@@ -129,15 +128,15 @@ func (c *config) textExporter(ctx context.Context) (archive.TextExporterInterfac
 		exp := &archive.NoneExporter{}
 		textExporter = exp
 	case "local":
-		logPath := getEnv("LOCAL_EXPORTER_LOGFILE")
-		fileDir := getEnv("LOCAL_EXPORTER_FILEDIR")
+		logPath := archive.Getenv("LOCAL_EXPORTER_LOGFILE")
+		fileDir := archive.Getenv("LOCAL_EXPORTER_FILEDIR")
 		exp := archive.NewLocalExporter(c.logger, logPath, fileDir)
 		textExporter = exp
 	case "s3":
 		exp, err := archive.NewS3Exporter(ctx, c.logger,
-			getEnv("S3_EXPORTER_BUCKET"),
-			getEnv("S3_EXPORTER_ARCHIVE_FILENAME"),
-			getEnv("S3_EXPORTER_FILES_KEY_PREFIX"),
+			archive.Getenv("S3_EXPORTER_BUCKET"),
+			archive.Getenv("S3_EXPORTER_ARCHIVE_FILENAME"),
+			archive.Getenv("S3_EXPORTER_FILES_KEY_PREFIX"),
 		)
 		if err != nil {
 			return nil, err
@@ -145,11 +144,11 @@ func (c *config) textExporter(ctx context.Context) (archive.TextExporterInterfac
 		textExporter = exp
 	case "ses":
 		var (
-			configSetName = getEnv("SES_EXPORTER_CONFIG_SET_NAME")
-			sourceArn     = getEnv("SES_EXPORTER_SOURCE_ARN")
-			from          = getEnv("SES_EXPORTER_FROM")
-			to            = []string{getEnv("SES_EXPORTER_TO")}
-			subject       = getEnv("SES_EXPORTER_SUBJECT")
+			configSetName = archive.Getenv("SES_EXPORTER_CONFIG_SET_NAME")
+			sourceArn     = archive.Getenv("SES_EXPORTER_SOURCE_ARN")
+			from          = archive.Getenv("SES_EXPORTER_FROM")
+			to            = []string{archive.Getenv("SES_EXPORTER_TO")}
+			subject       = archive.Getenv("SES_EXPORTER_SUBJECT")
 		)
 		log.Println(configSetName, sourceArn, from, to, subject)
 		exp, err := archive.NewSESTextExporter(ctx, c.logger, configSetName, sourceArn, from, to, subject)
@@ -171,15 +170,15 @@ func (c *config) fileExporter(ctx context.Context) (archive.FileExporterInterfac
 		exp := &archive.NoneExporter{}
 		fileExporter = exp
 	case "local":
-		logPath := getEnv("LOCAL_EXPORTER_LOGFILE")
-		fileDir := getEnv("LOCAL_EXPORTER_FILEDIR")
+		logPath := archive.Getenv("LOCAL_EXPORTER_LOGFILE")
+		fileDir := archive.Getenv("LOCAL_EXPORTER_FILEDIR")
 		exp := archive.NewLocalExporter(c.logger, logPath, fileDir)
 		fileExporter = exp
 	case "s3":
 		exp, err := archive.NewS3Exporter(ctx, c.logger,
-			os.Getenv("S3_EXPORTER_BUCKET"),
-			os.Getenv("S3_EXPORTER_ARCHIVE_FILENAME"),
-			os.Getenv("S3_EXPORTER_FILES_KEY_PREFIX"),
+			archive.Getenv("S3_EXPORTER_BUCKET"),
+			archive.Getenv("S3_EXPORTER_ARCHIVE_FILENAME"),
+			archive.Getenv("S3_EXPORTER_FILES_KEY_PREFIX"),
 		)
 		if err != nil {
 			return nil, err
@@ -190,23 +189,4 @@ func (c *config) fileExporter(ctx context.Context) (archive.FileExporterInterfac
 	}
 
 	return fileExporter, nil
-}
-
-// NOTE: os.Getenv(ENVNAME) or os.Getenv(ENVNAME_BASE64)
-func getEnv(env string) string {
-	envPrefix := "SA_"
-	plain := os.Getenv(envPrefix + env)
-	b64 := os.Getenv(envPrefix + env + "_BASE64")
-
-	if plain != "" {
-		return plain
-	}
-	if b64 != "" {
-		decoded, err := base64.StdEncoding.DecodeString(b64)
-		if err != nil {
-			panic(fmt.Errorf("error: Environment variable decode: %s: %w", env+"_BASE64", err))
-		}
-		return string(decoded)
-	}
-	return ""
 }
