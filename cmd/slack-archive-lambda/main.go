@@ -14,10 +14,18 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 )
 
+// Lambda predefined runtime environment variables
+// ref: https://docs.aws.amazon.com/ja_jp/lambda/latest/dg/configuration-envvars.html#configuration-envvars-runtime
+var (
+	lambdaRegion  = os.Getenv("AWS_REGION")
+	lambdaName    = os.Getenv("AWS_LAMBDA_FUNCTION_NAME")
+	lambdaVersion = os.Getenv("AWS_LAMBDA_FUNCTION_VERSION")
+)
+
 func main() {
 	if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") != "" {
 		slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
-		slog.Info("Start on lambda runtime")
+		slog.Info("Start on lambda runtime", "region", lambdaRegion, "name", lambdaName, "version", lambdaVersion)
 		lambda.Start(lambdaHandler)
 	} else {
 		slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, nil)))
