@@ -20,15 +20,16 @@ var (
 // request and response event formats follow the same schema as the Amazon API Gateway payload format version 2.0.
 // ref: https://docs.aws.amazon.com/lambda/latest/dg/urls-invocation.html#urls-payloads
 func lambdaHandler(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	// slog.Info("lambdaHandler handled request", "body", request.Body)
+	logger := slog.Default()
 	req := &archiveRequest{}
 	if err := json.Unmarshal([]byte(request.Body), req); err != nil {
+		logger.Error("failed to unmarshal request.Body", "error", err.Error(), "body", request.Body)
 		return errToAPIGatewayResponse(err), err
 	}
-	slog.Info("success archiveRequest parse.", slog.Any("body", req))
 
 	response, err := handler(ctx, req)
 	if err != nil {
+		logger.Error("an error occurred", "error", err.Error(), "function", "handler")
 		return errToAPIGatewayResponse(err), err
 	}
 
