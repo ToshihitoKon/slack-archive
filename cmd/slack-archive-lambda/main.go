@@ -7,8 +7,6 @@ import (
 	"log/slog"
 	"os"
 
-	archive "github.com/ToshihitoKon/slack-archive"
-
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 )
@@ -36,20 +34,6 @@ func main() {
 
 		slog.Info("ok", slog.Any("response", res))
 	}
-}
-
-func handler(ctx context.Context, req *archiveRequest) (string, error) {
-	_ = ctx // TODO: archive.Runにctx渡してしまってよさそう
-	archiveConf, err := req.toConfig()
-	if err != nil {
-		return "internal server error", err
-	}
-
-	if err := archive.Run(archiveConf); err != nil {
-		return "internal server error", err
-	}
-
-	return "success", nil
 }
 
 func readLocalRequestJson(filePath string) (events.APIGatewayProxyRequest, error) {

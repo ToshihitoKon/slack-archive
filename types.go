@@ -6,21 +6,16 @@ import (
 )
 
 type Config struct {
-	Since     time.Time
-	Until     time.Time
-	Exporter  string
-	Formatter string
-
-	LocalFileDir string
-	Logger       *slog.Logger
+	Since  time.Time
+	Until  time.Time
+	Logger *slog.Logger
 
 	SlackToken   string
 	SlackChannel string
 
-	S3Bucket     string
-	S3FileKey    string
-	S3ArchiveKey string
-	SESTo        []string
+	TextExporter TextExporterInterface
+	FileExporter FileExporterInterface
+	Formatter    FormatterInterface
 }
 
 type LocalFile struct {

@@ -13,11 +13,7 @@ type TextFormatter struct {
 
 var _ FormatterInterface = (*TextFormatter)(nil)
 
-func NewTextFormatter() *TextFormatter {
-	replyIndent := getEnv("SA_TEXT_FORMATTER_REPLY_INDENT")
-	if replyIndent == "" {
-		replyIndent = " | "
-	}
+func NewTextFormatter(replyIndent string) *TextFormatter {
 	return &TextFormatter{
 		ReplyIndent: replyIndent,
 	}

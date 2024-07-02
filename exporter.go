@@ -28,11 +28,9 @@ type LocalExporter struct {
 var _ TextExporterInterface = (*LocalExporter)(nil)
 var _ FileExporterInterface = (*LocalExporter)(nil)
 
-func NewLocalExporter(logger *slog.Logger) *LocalExporter {
-	logPath := getEnv("SA_LOCAL_EXPORTER_LOGFILE")
-	fileDirPath := getEnv("SA_LOCAL_EXPORTER_FILEDIR")
-	if fileDirPath == "" || logPath == "" {
-		panic("SA_LOCAL_EXPORTER_{LOGFILE, FILEDIR} are required")
+func NewLocalExporter(logger *slog.Logger, logPath, fileDirPath string) *LocalExporter {
+	if logPath == "" || fileDirPath == "" {
+		panic("NewLocalExporter: logPath and fileDirPath are required")
 	}
 
 	return &LocalExporter{
