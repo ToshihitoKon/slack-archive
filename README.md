@@ -1,89 +1,74 @@
 # slack-archive
 
-Slackのポストをファイルに書き出すだけ
+Slackのログとファイルをいろんな場所に書き出す
 
-## Config
 
-Duration config:
-- Since SA_SINCE: unixtimestamp
-- Until SA_UNTIL: unixtimestamp
-- Before SA_BEFORE: unixtimestamp
-- After SA_AFTER: unixtime
-- Duration SA_DURATION: seconds
+## Usage
 
-since < x < until
-x:duration < Before
-After < x:duration
+### CLI mode
 
-Slack Config:
-- Token SA_SLACK_TOKEN: string
-- ChannelID SA_SLACK_CHANNEL: string
-
-Output Config:
-- file
-- S3 (TODO)
-- mail (TODO)
-
-## CLI Mode
-
-### Get channel history
-
-channel_id string (ex. CXXXXXXXXXX)
-before/after ISO8601: (ex. 2024-06-14T15:04:05)
-
-### Get thread hisotry
-
-channel_id string (ex. CXXXXXXXXXX)
-thread_ts string (ex. 1718183481.963719)
-
-or
-
-url string (ex. https://examplews.slack.com/archives/CXXXXXXXXXX/p1718243827457659?thread_ts=1718183481.963719&cid=CXXXXXXXXXX
-Automaticaly detect channel_id and thread_ts from given URL
-(TODO)
-
-## HTTP WebAPI Mode(TODO)
-
-- GET: /
-    - Dispatch form
-- POST: /run/channel
-    - Run with channel mode
+#### environments
 
 ```
-Header Content-Type: application/json
+SA_SLACK_TOKEN=[xoxb-YOURSLACKTOKEN]
+SA_SLACK_CHANNEL=[Slack channel ID]
+
+# TextFormatter
+SA_TEXT_FORMATTER_REPLY_INDENT_BASE64=ICAgIA==
+
+# Local Exporter
+SA_LOCAL_EXPORTER_LOGFILE=/dev/stdout
+SA_LOCAL_EXPORTER_FILEDIR=/tmp/slack-archive
+
+# Amazon S3 Exporter
+SA_S3_EXPORTER_BUCKET=[S3 Bucket name without s3:// prefix]
+SA_S3_EXPORTER_ARCHIVE_FILENAME=[path/to/log-text-file]
+SA_S3_EXPORTER_FILES_KEY_PREFIX=[path/to/files/basedir/]
+
+# Amazon SES Exporter
+SA_SES_EXPORTER_CONFIG_SET_NAME=[SES Configuration set name]
+SA_SES_EXPORTER_SOURCE_ARN=[SES source ARN]
+SA_SES_EXPORTER_SUBJECT=[Mail SUBJECT text]
+SA_SES_EXPORTER_FROM=[Mail FROM address]
+SA_SES_EXPORTER_TO=[Mail TO address]
+```
+
+#### command
+
+```
+go run cmd/slack-archive/main.go \
+    --since $(gdate --date '2024-07-01' +%s) \
+    --duration 24h \
+    --formatter text \
+    --text-exporter local \
+    --file-exporter local
+```
+
+## Lambda Web endpoint
+
+Build `cmd/slack-archive-lambda` as `bootstrap` and Deploy lambda using provided.al2023 runtime
+
+#### Lambda environment
+
+```
+SA_SES_EXPORTER_CONFIG_SET_NAME=[SES Configuration set name]
+SA_SES_EXPORTER_SOURCE_ARN=[SES source ARN]
+```
+
+#### POST request payload
+
+```json
 {
-    "channel_id": "CXXXXXXXXXX",
-    "before": "2024-06-14T00:00:00",
-    "after": "2024-06-14T23:59:59",
+    "slack_channel":"Slack channel ID",
+    "slack_token":"xoxb-YOURSLACKTOKEN",
+    "since":"2024-07-01T12:00:00+09:00",
+    "until": "2024-07-02T12:00:00+09:00",
+    "To":["receiver.address@example.com"],
+    "s3_bucket":"[S3 bucket name]",
+    "s3_key": "[path/to/files/basekey/]"}
 }
 ```
 
-- POST: /run/thread
-    - Run with thread mode
+## Custom Formatter and Exporter
 
-```
-Header Content-Type: application/json
-{
-    "channel_id": "CXXXXXXXXXX",
-    "thread_ts": "1718183481.963719"
-}
-```
-
-## Process
-
-### Flow and Components
-
-Collector -> Exporter
-
-- Collector
-    - channel: slack.GetConversationHistory
-    - thread: GetConversationReplies
-- Exporter
-    - destination
-        - File(io.Writer)
-        - S3(TODO)
-        - Mail(TODO)
-    - Format
-        - text
-        - json
-
+types.goのFormatterInterfaceとTextExporterInterface, FileExporterInterfaceを満たす構造体をConfigに入れることで任意のフォーマットで任意のExport先を追加できます
