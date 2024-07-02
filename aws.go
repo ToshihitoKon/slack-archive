@@ -72,7 +72,6 @@ func (e *S3Exporter) WriteFiles(ctx context.Context, files []*LocalFile, fileNam
 }
 
 func (e *S3Exporter) putFileToS3(ctx context.Context, srcPath, dstKey string) error {
-	e.logger.Info("s3.PutObject", "source", srcPath, "destination", path.Join(e.bucket, dstKey))
 	f, err := os.Open(srcPath)
 	if err != nil {
 		return err
@@ -149,8 +148,6 @@ func (e *SESTextExporter) sendMail(ctx context.Context, maildata *Mail) error {
 	header := maildata.headerString()
 
 	rawMessage := append([]byte(header), maildata.Body...)
-	e.logger.Info(string(rawMessage))
-
 	msg := &sestypes.RawMessage{
 		Data: rawMessage,
 	}

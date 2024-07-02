@@ -135,8 +135,6 @@ func (collector *SlackCollector) getHistoryMessages(ctx context.Context) error {
 	var count = 0
 	for count < config.RetrivalLimit {
 		count++
-		collector.logger.Info("GetConversationHistoryContext", "count", count)
-
 		params := &slack.GetConversationHistoryParameters{
 			ChannelID:          config.Channel,
 			Cursor:             cur,
@@ -175,7 +173,6 @@ func (collector *SlackCollector) getHistoryMessagesInThread(ctx context.Context)
 
 	var threadBaseMessages = []slack.Message{}
 	for _, msg := range collector.messages {
-		collector.logger.Info("collector.messages", "ts", msg.Timestamp, "subtype", msg.SubType, "replyCount", msg.ReplyCount)
 		if msg.ReplyCount != 0 {
 			threadBaseMessages = append(threadBaseMessages, msg)
 		}
@@ -186,14 +183,11 @@ func (collector *SlackCollector) getHistoryMessagesInThread(ctx context.Context)
 		if _, ok := collector.replyMessages[baseMsg.Timestamp]; !ok {
 			collector.replyMessages[baseMsg.Timestamp] = []slack.Message{}
 		}
-		collector.logger.Info("ReplyMessages", "ts", baseMsg.Timestamp)
 
 		var cur string = ""
 		var count = 0
 		for count < config.RetrivalLimit {
 			count++
-			collector.logger.Info("GetConversationHistoryContext", "baseMessage timestamp", baseMsg.Timestamp, "count", count)
-
 			params := &slack.GetConversationRepliesParameters{
 				ChannelID:          config.Channel,
 				Timestamp:          baseMsg.Timestamp,
@@ -249,7 +243,6 @@ func (collector *SlackCollector) getUserdata(ctx context.Context) error {
 }
 
 func (collector *SlackCollector) getUsername(ctx context.Context, uid string) (string, error) {
-	collector.logger.Info("GetUserProfileContext", "UserID", uid)
 	uprof, err := collector.slackClient.GetUserProfileContext(ctx, &slack.GetUserProfileParameters{
 		UserID:        uid,
 		IncludeLabels: false,
@@ -293,7 +286,6 @@ func (collector *SlackCollector) outputs() (Outputs, error) {
 				}
 				outputReplies = append(outputReplies, outputReply)
 			}
-			collector.logger.Info("Replies", "count", len(outputReplies))
 			output.Replies = outputReplies
 		}
 
@@ -384,7 +376,6 @@ func (collector *SlackCollector) getFileAndPutTemporaryPath(ctx context.Context,
 		return path, nil
 	}
 
-	collector.logger.Info("Save temporary file", "name", slackFile.Name, "destination", "size", path, slackFile.Size, "filetype", slackFile.Filetype)
 	f, err := os.Create(path)
 	if err != nil {
 		return "", err
