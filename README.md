@@ -35,7 +35,7 @@ SA_SES_EXPORTER_TO=[Mail TO address]
 
 #### command
 
-```
+```shell
 go run cmd/slack-archive/main.go \
     --since $(gdate --date '2024-07-01' +%s) \
     --duration 24h \
@@ -65,7 +65,7 @@ SA_SES_EXPORTER_SOURCE_ARN=[SES source ARN]
     "until": "2024-07-02T12:00:00+09:00",
     "To":["receiver.address@example.com"],
     "s3_bucket":"[S3 bucket name]",
-    "s3_key": "[path/to/files/basekey/]"}
+    "s3_key": "[path/to/files/basekey/]"
 }
 ```
 
