@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
 	"path"
 
@@ -60,15 +61,29 @@ func (e *S3Exporter) Write(ctx context.Context, data []byte) error {
 	return nil
 }
 
-func (e *S3Exporter) WriteFiles(ctx context.Context, files []*LocalFile, fileNameFunc func(*LocalFile) string) error {
+func (e *S3Exporter) WriteFiles(ctx context.Context, files []*LocalFile) error {
 	for _, file := range files {
-		var key string = path.Join(e.filesKeyPrefix, fileNameFunc(file))
-		if err := e.putFileToS3(ctx, file.path, key); err != nil {
+		if err := e.putFileToS3(ctx, file.path, e.getS3Key(file)); err != nil {
 			return err
 		}
 	}
-
 	return nil
+}
+
+func (e *S3Exporter) FormatFileName(f *LocalFile) string {
+	return e.getS3Url(f).String()
+}
+
+func (e *S3Exporter) getS3Key(f *LocalFile) string {
+	return path.Join(e.filesKeyPrefix, fmt.Sprintf("%s_%s", f.id, f.name))
+}
+
+func (e *S3Exporter) getS3Url(f *LocalFile) *url.URL {
+	return &url.URL{
+		Scheme: "https",
+		Host:   "s3.ap-northeast-1.amazonaws.com",
+		Path:   path.Join("/", e.bucket, e.getS3Key(f)),
+	}
 }
 
 func (e *S3Exporter) putFileToS3(ctx context.Context, srcPath, dstKey string) error {

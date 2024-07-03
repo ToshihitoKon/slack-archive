@@ -2,7 +2,6 @@ package archive
 
 import (
 	"fmt"
-	"path"
 	"sort"
 	"strings"
 )
@@ -19,10 +18,7 @@ func NewTextFormatter(replyIndent string) *TextFormatter {
 	}
 }
 
-func (f *TextFormatter) WriteFileName(file *LocalFile) string {
-	return path.Join(fmt.Sprintf("%s_%s", file.id, file.name))
-}
-func (f *TextFormatter) Format(outputs Outputs) []byte {
+func (f *TextFormatter) Format(outputs Outputs, writeFileName func(*LocalFile) string) []byte {
 	sort.Slice(outputs, func(i, j int) bool { return outputs[i].Timestamp.Before(outputs[j].Timestamp) })
 
 	texts := []string{}
@@ -34,7 +30,7 @@ func (f *TextFormatter) Format(outputs Outputs) []byte {
 			output.Text,
 		)
 		for _, tfile := range output.LocalFiles {
-			text += fmt.Sprintf("\n(file: %s)", f.WriteFileName(tfile))
+			text += fmt.Sprintf("\n(file: %s)", writeFileName(tfile))
 		}
 		texts = append(texts, text)
 
@@ -50,7 +46,7 @@ func (f *TextFormatter) Format(outputs Outputs) []byte {
 				textBody,
 			)
 			for _, tfile := range reply.LocalFiles {
-				text += fmt.Sprintf("\n%s(file: %s)", f.ReplyIndent, f.WriteFileName(tfile))
+				text += fmt.Sprintf("\n%s(file: %s)", f.ReplyIndent, writeFileName(tfile))
 			}
 			texts = append(texts, text)
 		}
