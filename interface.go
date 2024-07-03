@@ -24,13 +24,13 @@ type CollectorInterface interface {
 }
 
 type FormatterInterface interface {
-	Format(Outputs) []byte
-	WriteFileName(*LocalFile) string
+	Format(Outputs, func(*LocalFile) string) []byte
 }
 
 type TextExporterInterface interface {
 	Write(context.Context, []byte) error
 }
 type FileExporterInterface interface {
-	WriteFiles(context.Context, []*LocalFile, func(*LocalFile) string) error
+	WriteFiles(context.Context, []*LocalFile) error
+	FormatFileName(*LocalFile) string
 }

@@ -2,6 +2,7 @@ package archive
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -14,8 +15,11 @@ var _ TextExporterInterface = (*NoneExporter)(nil)
 var _ FileExporterInterface = (*NoneExporter)(nil)
 
 func (_ *NoneExporter) Write(_ context.Context, _ []byte) error { return nil }
-func (_ *NoneExporter) WriteFiles(_ context.Context, _ []*LocalFile, _ func(*LocalFile) string) error {
+func (_ *NoneExporter) WriteFiles(_ context.Context, _ []*LocalFile) error {
 	return nil
+}
+func (_ *NoneExporter) FormatFileName(f *LocalFile) string {
+	return ""
 }
 
 type LocalExporter struct {
@@ -53,7 +57,7 @@ func (e *LocalExporter) Write(ctx context.Context, data []byte) error {
 	return nil
 }
 
-func (e *LocalExporter) WriteFiles(ctx context.Context, files []*LocalFile, fileNameFunc func(*LocalFile) string) error {
+func (e *LocalExporter) WriteFiles(ctx context.Context, files []*LocalFile) error {
 	if _, err := os.ReadDir(e.fileDirPath); err != nil {
 		if err := os.MkdirAll(e.fileDirPath, 0755); err != nil {
 			return err
@@ -61,14 +65,19 @@ func (e *LocalExporter) WriteFiles(ctx context.Context, files []*LocalFile, file
 	}
 	e.logger.Info("WriteFile count", "num", len(files))
 	for _, file := range files {
+		filename := fmt.Sprintf("%s_%s", file.id, file.name)
 		srcPath := file.path
-		dstPath := path.Join(e.fileDirPath, fileNameFunc(file))
+		dstPath := path.Join(e.fileDirPath, filename)
 		e.logger.Info("WriteFile copy", "source", srcPath, "destination", dstPath)
 		if err := copy(srcPath, dstPath); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func (e *LocalExporter) FormatFileName(f *LocalFile) string {
+	return fmt.Sprintf("%s_%s", f.id, f.name)
 }
 
 func copy(srcPath, dstPath string) error {

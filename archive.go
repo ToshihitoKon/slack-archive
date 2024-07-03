@@ -14,11 +14,13 @@ func Run(ctx context.Context, config *Config) error {
 		return err
 	}
 
-	bytes := config.Formatter.Format(outputs)
-	if err := config.TextExporter.Write(ctx, bytes); err != nil {
+	if err := config.FileExporter.WriteFiles(ctx, outputs.LocalFiles()); err != nil {
 		return err
 	}
-	if err := config.FileExporter.WriteFiles(ctx, outputs.LocalFiles(), config.Formatter.WriteFileName); err != nil {
+
+	bytes := config.Formatter.Format(outputs, config.FileExporter.FormatFileName)
+
+	if err := config.TextExporter.Write(ctx, bytes); err != nil {
 		return err
 	}
 
