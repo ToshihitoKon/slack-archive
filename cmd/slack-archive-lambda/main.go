@@ -80,7 +80,7 @@ func makeConfig(ctx context.Context, req *archiveRequest) (*archive.Config, erro
 		return nil, fmt.Errorf("error time.Parse until: %w", err)
 	}
 
-	replyIndent := "    | "
+	replyIndent := archive.Getenv("TEXT_FORMATTER_REPLY_INDENT")
 	formatter := archive.NewTextFormatter(replyIndent)
 
 	var (
