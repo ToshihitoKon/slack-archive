@@ -58,6 +58,7 @@ func (e *LocalExporter) Write(ctx context.Context, data []byte) error {
 }
 
 func (e *LocalExporter) WriteFiles(ctx context.Context, files []*LocalFile) error {
+	// debug
 	if _, err := os.ReadDir(e.fileDirPath); err != nil {
 		if err := os.MkdirAll(e.fileDirPath, 0755); err != nil {
 			return err

@@ -63,7 +63,13 @@ func (e *S3Exporter) Write(ctx context.Context, data []byte) error {
 
 func (e *S3Exporter) WriteFiles(ctx context.Context, files []*LocalFile) error {
 	for _, file := range files {
-		if err := e.putFileToS3(ctx, file.path, e.getS3Key(file)); err != nil {
+		ctype, err := file.detectContentType()
+		if err != nil {
+			e.logger.Error("an error occurred", "error", err.Error())
+			continue
+		}
+
+		if err := e.putFileToS3(ctx, file.path, ctype, e.getS3Key(file)); err != nil {
 			return err
 		}
 	}
@@ -86,7 +92,7 @@ func (e *S3Exporter) getS3Url(f *LocalFile) *url.URL {
 	}
 }
 
-func (e *S3Exporter) putFileToS3(ctx context.Context, srcPath, dstKey string) error {
+func (e *S3Exporter) putFileToS3(ctx context.Context, srcPath, contentType, dstKey string) error {
 	f, err := os.Open(srcPath)
 	if err != nil {
 		return err
@@ -94,9 +100,12 @@ func (e *S3Exporter) putFileToS3(ctx context.Context, srcPath, dstKey string) er
 	defer f.Close()
 
 	params := &s3.PutObjectInput{
-		Bucket: &e.bucket,
-		Key:    &dstKey,
+		Bucket: aws.String(e.bucket),
+		Key:    aws.String(dstKey),
 		Body:   f,
+	}
+	if contentType != "" {
+		params.ContentType = aws.String(contentType)
 	}
 	if _, err := e.s3Client.PutObject(ctx, params); err != nil {
 		return err
