@@ -112,7 +112,7 @@ func (c *config) formatter() (archive.FormatterInterface, error) {
 	var formatter archive.FormatterInterface
 	switch c.formatterName {
 	case "text":
-		indent := " | "
+		indent := archive.Getenv("TEXT_FORMATTER_REPLY_INDENT")
 		formatter = archive.NewTextFormatter(indent)
 	default:
 		return nil, fmt.Errorf("Formatter is not available. FormatterName: %s", c.formatterName)
