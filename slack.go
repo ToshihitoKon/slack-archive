@@ -93,30 +93,30 @@ func NewSlackCollector(conf *Config, slackConf *SlackCollectorConfig) *SlackColl
 	}
 }
 
-func (collector *SlackCollector) Clean() {
-	if err := os.RemoveAll(collector.tempFileDir); err != nil {
-		collector.logger.Error("an error occurred", "function", "os.RemoveAll", "error", err.Error())
+func (c *SlackCollector) Clean() {
+	if err := os.RemoveAll(c.tempFileDir); err != nil {
+		c.logger.Error("an error occurred", "function", "os.RemoveAll", "error", err.Error())
 	}
 }
 
-func (collector *SlackCollector) Execute(ctx context.Context) (Outputs, error) {
-	if err := collector.getHistoryMessages(ctx); err != nil {
+func (c *SlackCollector) Execute(ctx context.Context) (Outputs, error) {
+	if err := c.getHistoryMessages(ctx); err != nil {
 		return nil, err
 	}
 
-	if err := collector.getHistoryMessagesInThread(ctx); err != nil {
+	if err := c.getHistoryMessagesInThread(ctx); err != nil {
 		return nil, err
 	}
 
-	if err := collector.getUserdata(ctx); err != nil {
+	if err := c.getUserdata(ctx); err != nil {
 		return nil, err
 	}
 
-	if err := collector.getAllFiles(ctx); err != nil {
+	if err := c.getAllFiles(ctx); err != nil {
 		return nil, err
 	}
 
-	outputs, err := collector.outputs()
+	outputs, err := c.outputs()
 	if err != nil {
 		return nil, err
 	}
@@ -124,9 +124,9 @@ func (collector *SlackCollector) Execute(ctx context.Context) (Outputs, error) {
 	return outputs, nil
 }
 
-func (collector *SlackCollector) getHistoryMessages(ctx context.Context) error {
-	client := collector.slackClient
-	config := collector.config
+func (c *SlackCollector) getHistoryMessages(ctx context.Context) error {
+	client := c.slackClient
+	config := c.config
 
 	var messages = []slack.Message{}
 
@@ -163,16 +163,16 @@ func (collector *SlackCollector) getHistoryMessages(ctx context.Context) error {
 		cur = historyRes.ResponseMetaData.NextCursor
 	}
 
-	collector.messages = messages
+	c.messages = messages
 	return nil
 }
 
-func (collector *SlackCollector) getHistoryMessagesInThread(ctx context.Context) error {
-	client := collector.slackClient
-	config := collector.config
+func (c *SlackCollector) getHistoryMessagesInThread(ctx context.Context) error {
+	client := c.slackClient
+	config := c.config
 
 	var threadBaseMessages = []slack.Message{}
-	for _, msg := range collector.messages {
+	for _, msg := range c.messages {
 		if msg.ReplyCount != 0 {
 			threadBaseMessages = append(threadBaseMessages, msg)
 		}
@@ -180,8 +180,8 @@ func (collector *SlackCollector) getHistoryMessagesInThread(ctx context.Context)
 
 	// conversations.replies
 	for _, baseMsg := range threadBaseMessages {
-		if _, ok := collector.replyMessages[baseMsg.Timestamp]; !ok {
-			collector.replyMessages[baseMsg.Timestamp] = []slack.Message{}
+		if _, ok := c.replyMessages[baseMsg.Timestamp]; !ok {
+			c.replyMessages[baseMsg.Timestamp] = []slack.Message{}
 		}
 
 		var cur string = ""
@@ -207,7 +207,7 @@ func (collector *SlackCollector) getHistoryMessagesInThread(ctx context.Context)
 				return err
 			}
 
-			collector.replyMessages[baseMsg.Timestamp] = append(collector.replyMessages[baseMsg.Timestamp], msgs...)
+			c.replyMessages[baseMsg.Timestamp] = append(c.replyMessages[baseMsg.Timestamp], msgs...)
 
 			if !hasMore {
 				break
@@ -219,31 +219,31 @@ func (collector *SlackCollector) getHistoryMessagesInThread(ctx context.Context)
 	return nil
 }
 
-func (collector *SlackCollector) getUserdata(ctx context.Context) error {
-	for _, msg := range collector.messages {
-		collector.userCache.putIfNotExist(msg.User, "")
+func (c *SlackCollector) getUserdata(ctx context.Context) error {
+	for _, msg := range c.messages {
+		c.userCache.putIfNotExist(msg.User, "")
 		// NOTE: リアクションのアーカイブ非対応なのでユーザーID検索もスキップ
 		// for _, r := range msg.Reactions {
 		// }
 	}
-	for _, msgs := range collector.replyMessages {
+	for _, msgs := range c.replyMessages {
 		for _, msg := range msgs {
-			collector.userCache.putIfNotExist(msg.User, "")
+			c.userCache.putIfNotExist(msg.User, "")
 			// NOTE: リアクションのアーカイブ非対応なのでユーザーID検索もスキップ
 			// for _, r := range msg.Reactions {
 			// }
 		}
 	}
 
-	if err := collector.userdataFetchAll(ctx); err != nil {
+	if err := c.userdataFetchAll(ctx); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (collector *SlackCollector) getUsername(ctx context.Context, uid string) (string, error) {
-	uprof, err := collector.slackClient.GetUserProfileContext(ctx, &slack.GetUserProfileParameters{
+func (c *SlackCollector) getUsername(ctx context.Context, uid string) (string, error) {
+	uprof, err := c.slackClient.GetUserProfileContext(ctx, &slack.GetUserProfileParameters{
 		UserID:        uid,
 		IncludeLabels: false,
 	})
@@ -257,27 +257,27 @@ type userCacheClient struct {
 	cache map[string]string
 }
 
-func (collector *SlackCollector) outputs() (Outputs, error) {
+func (c *SlackCollector) outputs() (Outputs, error) {
 	var outputs Outputs
 
-	for _, msg := range collector.messages {
+	for _, msg := range c.messages {
 		if msg.SubType == "thread_broadcast" {
 			continue
 		}
 
-		output, err := collector.slackMessageToOutput(msg)
+		output, err := c.slackMessageToOutput(msg)
 		if err != nil {
-			collector.logger.Error("failed to convert slackMessage to archive.Output", "error", err)
+			c.logger.Error("failed to convert slackMessage to archive.Output", "error", err)
 			continue
 		}
 
 		// リプライがある場合は後ろにくっつける
-		if replies, ok := collector.replyMessages[msg.Timestamp]; ok {
+		if replies, ok := c.replyMessages[msg.Timestamp]; ok {
 			outputReplies := Outputs{}
 			for _, reply := range replies {
-				outputReply, err := collector.slackMessageToOutput(reply)
+				outputReply, err := c.slackMessageToOutput(reply)
 				if err != nil {
-					collector.logger.Error("failed to convert slackMessage to archive.Output", "error", err)
+					c.logger.Error("failed to convert slackMessage to archive.Output", "error", err)
 					continue
 				}
 				// NOTE: Repliesにはスレッドの元になるポストが含まれるのでスキップする
@@ -295,13 +295,13 @@ func (collector *SlackCollector) outputs() (Outputs, error) {
 	return outputs, nil
 }
 
-func (collector *SlackCollector) slackMessageToOutput(msg slack.Message) (*Output, error) {
+func (c *SlackCollector) slackMessageToOutput(msg slack.Message) (*Output, error) {
 	var displayName string
 	if msg.Username != "" {
 		displayName = msg.Username
 	} else {
 		var ok bool
-		displayName, ok = collector.userCache.cache[msg.User]
+		displayName, ok = c.userCache.cache[msg.User]
 		if !ok {
 			displayName = msg.User
 		}
@@ -312,12 +312,12 @@ func (collector *SlackCollector) slackMessageToOutput(msg slack.Message) (*Outpu
 		return nil, fmt.Errorf("failed to ParseInt: %s", msg.Timestamp)
 	}
 	timestamp := time.UnixMicro(tsMicro)
-	text := collector.userCache.replaceAll(msg.Text)
+	text := c.userCache.replaceAll(msg.Text)
 
 	// Attachment Files
 	files := []*LocalFile{}
 	for _, slackFile := range msg.Files {
-		tempPath, ok := collector.tempFilePaths[slackFile.ID]
+		tempPath, ok := c.tempFilePaths[slackFile.ID]
 		if !ok {
 			continue
 		}
@@ -338,9 +338,9 @@ func (collector *SlackCollector) slackMessageToOutput(msg slack.Message) (*Outpu
 	}, nil
 }
 
-func (collector *SlackCollector) getAllFiles(ctx context.Context) error {
+func (c *SlackCollector) getAllFiles(ctx context.Context) error {
 	files := []slack.File{}
-	for _, msg := range collector.messages {
+	for _, msg := range c.messages {
 		for _, f := range msg.Files {
 			if f.Size == 0 {
 				continue
@@ -348,7 +348,7 @@ func (collector *SlackCollector) getAllFiles(ctx context.Context) error {
 			files = append(files, f)
 		}
 	}
-	for _, msgs := range collector.replyMessages {
+	for _, msgs := range c.replyMessages {
 		for _, msg := range msgs {
 			for _, f := range msg.Files {
 				if f.Size == 0 {
@@ -360,18 +360,18 @@ func (collector *SlackCollector) getAllFiles(ctx context.Context) error {
 	}
 
 	for _, f := range files {
-		p, err := collector.getFileAndPutTemporaryPath(ctx, f)
+		p, err := c.getFileAndPutTemporaryPath(ctx, f)
 		if err != nil {
 			return err
 		}
-		collector.tempFilePaths[f.ID] = p
+		c.tempFilePaths[f.ID] = p
 	}
 	return nil
 }
 
-func (collector *SlackCollector) getFileAndPutTemporaryPath(ctx context.Context, slackFile slack.File) (string, error) {
-	path := path.Join(collector.tempFileDir, slackFile.ID)
-	if _, ok := collector.tempFilePaths[slackFile.ID]; ok {
+func (c *SlackCollector) getFileAndPutTemporaryPath(ctx context.Context, slackFile slack.File) (string, error) {
+	path := path.Join(c.tempFileDir, slackFile.ID)
+	if _, ok := c.tempFilePaths[slackFile.ID]; ok {
 		// Already downloaded
 		return path, nil
 	}
@@ -381,7 +381,7 @@ func (collector *SlackCollector) getFileAndPutTemporaryPath(ctx context.Context,
 		return "", err
 	}
 	defer f.Close()
-	if err := collector.slackClient.GetFileContext(ctx, slackFile.URLPrivate, f); err != nil {
+	if err := c.slackClient.GetFileContext(ctx, slackFile.URLPrivate, f); err != nil {
 		return "", err
 	}
 	return path, nil
@@ -407,16 +407,16 @@ func (ucc *userCacheClient) replaceAll(str string) string {
 	return result
 }
 
-func (collector *SlackCollector) userdataFetchAll(ctx context.Context) error {
-	for uid, name := range collector.userCache.cache {
+func (c *SlackCollector) userdataFetchAll(ctx context.Context) error {
+	for uid, name := range c.userCache.cache {
 		if name == "" {
-			displayName, err := collector.getUsername(ctx, uid)
+			displayName, err := c.getUsername(ctx, uid)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
-				collector.userCache.cache[uid] = uid
+				c.userCache.cache[uid] = uid
 				continue
 			}
-			collector.userCache.cache[uid] = displayName
+			c.userCache.cache[uid] = displayName
 		}
 	}
 	return nil
