@@ -1,7 +1,10 @@
 package archive
 
 import (
+	"fmt"
 	"log/slog"
+	"net/http"
+	"os"
 	"time"
 )
 
@@ -23,6 +26,20 @@ type LocalFile struct {
 	path      string
 	name      string
 	timestamp time.Time
+}
+
+func (lf *LocalFile) detectContentType() (string, error) {
+	f, err := os.Open(lf.path)
+	if err != nil {
+		return "", fmt.Errorf("error os.Open %w", err)
+	}
+	// DetectContentType read first 512 bytes
+	// ref: https://pkg.go.dev/net/http#DetectContentType
+	b := make([]byte, 512, 512)
+	if _, err := f.Read(b); err != nil {
+		return "", fmt.Errorf("error os.File.Read %w", err)
+	}
+	return http.DetectContentType(b), nil
 }
 
 type Output struct {
