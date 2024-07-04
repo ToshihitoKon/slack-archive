@@ -50,13 +50,14 @@ func NewS3Exporter(ctx context.Context, logger *slog.Logger, bucket, archiveFile
 
 func (e *S3Exporter) Write(ctx context.Context, data []byte) error {
 	params := &s3.PutObjectInput{
-		Bucket: &e.bucket,
-		Key:    &e.archiveFilename,
+		Bucket: aws.String(e.bucket),
+		Key:    aws.String(e.archiveFilename),
 		Body:   bytes.NewReader(data),
 	}
 	if _, err := e.s3Client.PutObject(ctx, params); err != nil {
 		return err
 	}
+	e.logger.Info(fmt.Sprintf("S3Exporter: Write success. s3_object: s3://%s", path.Join(e.bucket, e.archiveFilename)))
 
 	return nil
 }
@@ -73,6 +74,7 @@ func (e *S3Exporter) WriteFiles(ctx context.Context, files []*LocalFile) error {
 			return err
 		}
 	}
+	e.logger.Info(fmt.Sprintf("S3Exporter: WriteFiles success. files_num: %d", len(files)))
 	return nil
 }
 
@@ -165,6 +167,7 @@ func (e *SESTextExporter) Write(ctx context.Context, data []byte) error {
 	if err := e.sendMail(ctx, e.maildata); err != nil {
 		return err
 	}
+	e.logger.Info("SESTextExporter: Write success.")
 	return nil
 }
 

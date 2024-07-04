@@ -54,6 +54,7 @@ func (e *LocalExporter) Write(ctx context.Context, data []byte) error {
 	if _, err := f.Write(data); err != nil {
 		return err
 	}
+	e.logger.Info(fmt.Sprintf("LocalExporter: Write success. file: %s", e.logFilePath))
 	return nil
 }
 
@@ -63,7 +64,6 @@ func (e *LocalExporter) WriteFiles(ctx context.Context, files []*LocalFile) erro
 			return err
 		}
 	}
-	e.logger.Info("WriteFile count", "num", len(files))
 	for _, file := range files {
 		filename := fmt.Sprintf("%s_%s", file.id, file.name)
 		srcPath := file.path
@@ -73,6 +73,7 @@ func (e *LocalExporter) WriteFiles(ctx context.Context, files []*LocalFile) erro
 			return err
 		}
 	}
+	e.logger.Info(fmt.Sprintf("LocalExporter: Write success. files_count: %d", len(files)))
 	return nil
 }
 

@@ -164,6 +164,7 @@ func (c *SlackCollector) getHistoryMessages(ctx context.Context) error {
 	}
 
 	c.messages = messages
+	c.logger.Info(fmt.Sprintf("SlackCollector: getHistoryMessages success. message_count: %d", len(messages)))
 	return nil
 }
 
@@ -179,6 +180,7 @@ func (c *SlackCollector) getHistoryMessagesInThread(ctx context.Context) error {
 	}
 
 	// conversations.replies
+	var msgCount = 0
 	for _, baseMsg := range threadBaseMessages {
 		if _, ok := c.replyMessages[baseMsg.Timestamp]; !ok {
 			c.replyMessages[baseMsg.Timestamp] = []slack.Message{}
@@ -214,8 +216,10 @@ func (c *SlackCollector) getHistoryMessagesInThread(ctx context.Context) error {
 			}
 			cur = nextCursor
 		}
+		msgCount += len(c.replyMessages[baseMsg.Timestamp])
 	}
 
+	c.logger.Info(fmt.Sprintf("SlackCollector: getHistoryMessagesInThread success. reply_count: %d", msgCount))
 	return nil
 }
 
@@ -239,6 +243,7 @@ func (c *SlackCollector) getUserdata(ctx context.Context) error {
 		return err
 	}
 
+	c.logger.Info(fmt.Sprintf("SlackCollector: getUserdata success. users_num: %d", len(c.userCache.cache)))
 	return nil
 }
 
@@ -366,6 +371,8 @@ func (c *SlackCollector) getAllFiles(ctx context.Context) error {
 		}
 		c.tempFilePaths[f.ID] = p
 	}
+
+	c.logger.Info(fmt.Sprintf("SlackCollector: getAllFiles success. files_num: %d", len(c.tempFilePaths)))
 	return nil
 }
 
