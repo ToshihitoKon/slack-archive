@@ -19,7 +19,7 @@ func lambdaHandler(ctx context.Context, request events.APIGatewayProxyRequest) (
 		b, err := base64.StdEncoding.DecodeString(request.Body)
 		if err != nil {
 			logger.Error("failed to base64 decode request.Body", "error", err.Error(), "body", request.Body)
-			return errToAPIGatewayResponse(err, 400), err
+			return errToAPIGatewayResponse(err, 400), nil
 		}
 		body = b
 	}
@@ -27,13 +27,13 @@ func lambdaHandler(ctx context.Context, request events.APIGatewayProxyRequest) (
 	req := &archiveRequest{}
 	if err := json.Unmarshal(body, req); err != nil {
 		logger.Error("failed to unmarshal request.Body", "error", err.Error(), "body", string(body))
-		return errToAPIGatewayResponse(err, 400), err
+		return errToAPIGatewayResponse(err, 400), nil
 	}
 
 	response, err := handler(ctx, req)
 	if err != nil {
 		logger.Error("an error occurred", "error", err.Error(), "function", "handler")
-		return errToAPIGatewayResponse(err, 500), err
+		return errToAPIGatewayResponse(err, 500), nil
 	}
 
 	return events.APIGatewayProxyResponse{
